@@ -34,7 +34,12 @@ const port = process.env.PORT || 5000;
 
 // CORS configuration
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://cleanersnear.com.au'],
+    origin: [
+        'http://localhost:3000', 
+        'https://cleanersnear.com.au',
+        'https://www.cleanersnear.com.au',
+        'https://api.cleanersnear.com.au'
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -45,6 +50,15 @@ app.use(express.json());
 // Test route
 app.get('/api/test', (req, res) => {
     res.json({ message: 'API is working' });
+});
+
+// Add this before your other routes
+app.get('/', (req, res) => {
+    res.json({
+        message: 'CleanersNear API Server',
+        status: 'running',
+        version: '1.0.0'
+    });
 });
 
 // Routes
