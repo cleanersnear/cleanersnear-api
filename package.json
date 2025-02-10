@@ -12,7 +12,8 @@
     "@supabase/supabase-js": "latest",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "next": "^14.2.23"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
