@@ -1,0 +1,48 @@
+model Customer {
+    id        Int      @id @default(autoincrement())
+    firstName String
+    lastName  String?
+    email     String
+    phone     String
+    address   Json     // Will store the full address object
+    bookings  Booking[]
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model Booking {
+    id            Int      @id @default(autoincrement())
+    bookingNumber String   @unique
+    customerId    Int
+    customer      Customer @relation(fields: [customerId], references: [id])
+    serviceType   String   // e.g., 'carpet-clean', 'deep-clean', etc.
+    status        String   @default("pending")
+    date          String
+    time          String
+    isFlexibleDate Boolean @default(false)
+    isFlexibleTime Boolean @default(false)
+    totalPrice    Float
+    
+    // Service specific relations
+    carpetCleaningService    CarpetCleaningService?
+    deepCleaningService      DeepCleaningService?
+    generalCleaningService   GeneralCleaningService?
+    // ... other service relations
+
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+}
+
+model CarpetCleaningService {
+    id              Int      @id @default(autoincrement())
+    bookingId       Int      @unique
+    booking         Booking  @relation(fields: [bookingId], references: [id])
+    
+    carpetCleaning  Json     // Stores carpet cleaning details
+    rugCleaning     Json     // Stores rug cleaning details
+    upholsteryCleaning Json  // Stores upholstery cleaning details
+    additionalNotes String?
+    
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+} 
