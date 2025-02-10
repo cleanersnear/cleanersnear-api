@@ -1,8 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
-import { errorHandler } from './middleware/errorHandler.js';
+
 import quickEnquiryRoutes from './routes/quickenquiry.js';
 import costCalculatorRoutes from './routes/costcalculator.js';
 import subscriptionRoutes from './routes/subscription.js';
