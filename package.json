@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon server.js",
-    "start": "cross-env NODE_ENV=production node server.js"
+    "start": "cross-env NODE_ENV=production node server.js",
+    "vercel-build": "echo building",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
@@ -12,8 +14,7 @@
     "@supabase/supabase-js": "latest",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "next": "^14.2.23"
+    "express": "^4.21.2"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
