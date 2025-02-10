@@ -2,13 +2,9 @@
   "name": "api",
   "version": "1.0.0",
   "type": "module",
-  "engines": {
-    "node": ">=18.0.0"
-  },
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon server.js",
-    "start": "cross-env NODE_ENV=production node server.js",
-    "build": "prisma generate"
+    "start": "cross-env NODE_ENV=production node server.js"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
@@ -16,10 +12,10 @@
     "@supabase/supabase-js": "latest",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "cross-env": "^7.0.3"
+    "express": "^4.21.2"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "nodemon": "^2.0.22"
   }
 }
