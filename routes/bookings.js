@@ -1,47 +1,184 @@
 import express from 'express';
+import { Router } from 'express';
 import { supabase } from '../config/supabase.js';
 
-const router = express.Router();
+// Import service handlers directly
+import carpetCleaningHandler from './services/carpetcleaning.js';
+import endOfLeaseHandler from './services/endoflease.js';
+import generalCleaningHandler from './services/generalcleaning.js';
+import deepCleaningHandler from './services/deepcleaning.js';
+import moveInOutHandler from './services/moveinout.js';
+import ndisCleanHandler from './services/ndisclean.js';
+import commercialCleanHandler from './services/commercialclean.js';
+import ovenCleanHandler from './services/ovenclean.js';
+import renovationCleanHandler from './services/renovationclean.js';
+import tileAndFloorHandler from './services/tileandfloorclean.js';
+import upholsteryCleanHandler from './services/upholsteryclean.js';
+import windowCleanHandler from './services/windowclean.js';
 
-// Service type mapping
-const SERVICE_ROUTES = {
-    'deep-clean': 'deep-cleaning',
-    'carpet-clean': 'carpet-cleaning',
-    'general-clean': 'general-cleaning',
-    'end-of-lease': 'end-of-lease',
-    'commercial-clean': 'commercial-clean',
-    'renovation-clean': 'renovation-clean',
-    'move-in-out': 'move-in-out',
-    'ndis-clean': 'ndis-clean',
-    'upholstery-clean': 'upholstery-clean'
+
+const router = Router();
+
+// Service type mapping for handlers - Match frontend IDs
+const SERVICE_HANDLERS = {
+    'carpet-cleaning': carpetCleaningHandler,        // Match frontend
+    'end-of-lease-cleaning': endOfLeaseHandler,      // Match frontend
+    'general-cleaning': generalCleaningHandler,
+    'deep-cleaning': deepCleaningHandler,
+    'move-in-cleaning': moveInOutHandler,
+    'ndis-cleaning': ndisCleanHandler,
+    'commercial-cleaning': commercialCleanHandler,
+ 
+    // Other services
+    'after-renovation-cleaning': renovationCleanHandler,
+    'oven-cleaning': ovenCleanHandler,
+    'tile-and-floor-cleaning': tileAndFloorHandler,
+    'upholstery-cleaning': upholsteryCleanHandler,
+    'window-cleaning': windowCleanHandler
 };
 
-// POST /api/bookings/submit
-router.post('/submit', async (req, res) => {
-    try {
-        const { customer, booking, serviceDetails } = req.body;
-        
-        console.log('Received service type:', serviceDetails.type);
-        console.log('Available service routes:', SERVICE_ROUTES);
+// Add unified service type validation
+const VALID_SERVICE_TYPES = [
+    // Popular services
+    'carpet-cleaning',
+    'end-of-lease-cleaning',
+    'general-cleaning',
+    'deep-cleaning',
+    'move-in-cleaning',
+    'ndis-cleaning',
+    'commercial-cleaning',
+    // Other services
+    'after-renovation-cleaning',
+    'oven-cleaning',
+    'tile-and-floor-cleaning',
+    'upholstery-cleaning',
+    'window-cleaning'
+];
 
-        // Get the correct route path
-        const servicePath = SERVICE_ROUTES[serviceDetails.type];
-        if (!servicePath) {
-            throw new Error(`Unsupported service type: ${serviceDetails.type}`);
+// Create new booking
+router.post('/', async (req, res) => {
+    try {
+        const {
+            serviceType,
+            location,
+            serviceDetails,
+            customerDetails,
+            createdAt = new Date().toISOString()
+        } = req.body;
+
+        // Add service type validation
+        if (!VALID_SERVICE_TYPES.includes(serviceType)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Failed to create booking',
+                error: `Invalid service type: ${serviceType}`
+            });
         }
 
-        // Forward to the appropriate service handler
-        const serviceRouter = await import(`./services/${servicePath}.js`);
-        await serviceRouter.default.processBooking(req, res);
+        // 1. Generate booking number
+        const bookingNumber = await generateBookingNumber();
+
+        // 2. Create basic booking record with corrected location structure
+        const { data: bookingData, error: bookingError } = await supabase
+            .from('bookings')
+            .insert({
+                booking_number: bookingNumber,
+                service_type: serviceType,
+                status: 'pending',
+                created_at: createdAt,
+                location: {
+                    suburb: location.name,      // Frontend sends name for suburb
+                    postcode: location.postcode,
+                    state: location.region      // Frontend sends region for state
+                }
+            })
+            .select()
+            .single();
+
+        if (bookingError) throw bookingError;
+
+        // 3. Create customer record
+        const { data: customerData, error: customerError } = await supabase
+            .from('customers')
+            .insert({
+                booking_id: bookingData.id,
+                first_name: customerDetails.firstName,
+                last_name: customerDetails.lastName,
+                email: customerDetails.email,
+                phone: customerDetails.phone,
+                address: customerDetails.address,
+                created_at: createdAt
+            })
+            .select()
+            .single();
+
+        if (customerError) throw customerError;
+
+        // 4. Update booking with customer ID and scheduling
+        await supabase
+            .from('bookings')
+            .update({ 
+                customer_id: customerData.id,
+                scheduling: {
+                    date: customerDetails.date,
+                    time: customerDetails.time,
+                    is_flexible_date: customerDetails.isFlexibleDate,
+                    is_flexible_time: customerDetails.isFlexibleTime
+                }
+            })
+            .eq('id', bookingData.id);
+
+        // 5. Forward to service-specific handler
+        const serviceHandler = SERVICE_HANDLERS[serviceType];
+        if (!serviceHandler) {
+            throw new Error(`No handler found for service type: ${serviceType}`);
+        }
+
+        const serviceResult = await serviceHandler.processBooking({
+            bookingId: bookingData.id,
+            serviceDetails
+        });
+
+        // 6. Update booking with price from service handler
+        await supabase
+            .from('bookings')
+            .update({
+                total_price: serviceResult.totalPrice
+            })
+            .eq('id', bookingData.id);
+
+        // 7. Return response matching booking.ts expectations
+        return res.status(201).json({
+            success: true,
+            bookingId: bookingData.id,
+            bookingNumber: bookingData.booking_number,
+            message: 'Booking created successfully'
+        });
 
     } catch (error) {
-        console.error('Booking submission error:', error);
-        res.status(500).json({
+        console.error('Booking error:', error);
+        return res.status(500).json({
             success: false,
-            message: 'Failed to submit booking',
+            message: 'Failed to create booking',
             error: error.message
         });
     }
 });
+
+// Helper function to generate booking number
+async function generateBookingNumber() {
+    const { data: latestBooking } = await supabase
+        .from('bookings')
+        .select('booking_number')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+    let nextNumber = 1;
+    if (latestBooking?.[0]) {
+        nextNumber = parseInt(latestBooking[0].booking_number.split('-')[1]) + 1;
+    }
+
+    return `BK-${nextNumber.toString().padStart(4, '0')}`;
+}
 
 export default router; 
