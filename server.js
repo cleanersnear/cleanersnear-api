@@ -24,6 +24,7 @@ import renovationCleanRouter from './routes/services/renovationclean.js';
 import ovenCleanRouter from './routes/services/ovenclean.js';
 import tileAndFloorCleanRouter from './routes/services/tileandfloorclean.js';
 import windowCleanRouter from './routes/services/windowclean.js';
+import blogRoutes from './routes/blog.js';
 
 // Load environment variables
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
@@ -84,6 +85,7 @@ app.use('/api/services/renovationclean', renovationCleanRouter);
 app.use('/api/services/ovenclean', ovenCleanRouter);
 app.use('/api/services/tileandfloorclean', tileAndFloorCleanRouter);
 app.use('/api/services/windowclean', windowCleanRouter);
+app.use('/api/blog', blogRoutes);
 
 // Add this for debugging
 console.log('Available routes:', app._router.stack
