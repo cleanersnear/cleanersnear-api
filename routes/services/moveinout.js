@@ -24,8 +24,8 @@ const moveInOutHandler = {
                     move_type: moveType,
                     
                     // Property Details
-                    home_size_id: propertyDetails.homeSize.id,
-                    home_size_label: propertyDetails.homeSize.label,
+                    home_size_id: propertyDetails?.homeSize?.id || null,
+                    home_size_label: propertyDetails?.homeSize?.label || null,
                     bathrooms: propertyDetails.bathrooms,
                     toilets: propertyDetails.toilets,
                     property_type: propertyDetails.propertyType,
