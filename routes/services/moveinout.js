@@ -20,10 +20,11 @@ const moveInOutHandler = {
             const { data: serviceData, error: serviceError } = await supabase
                 .from('move_in_out_services')
                 .insert({
-                    booking_id: bookingId,
+                    booking_id: bookingId, 
                     move_type: moveType,
                     
                     // Property Details
+                    // Make these optional
                     home_size_id: propertyDetails?.homeSize?.id || null,
                     home_size_label: propertyDetails?.homeSize?.label || null,
                     bathrooms: propertyDetails.bathrooms,

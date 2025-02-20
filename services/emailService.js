@@ -1,4 +1,4 @@
- import sgMail from '@sendgrid/mail';
+import sgMail from '@sendgrid/mail';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -8,7 +8,7 @@ export const emailService = {
             await sgMail.send({
                 to: process.env.SENDGRID_BUSINESS_EMAIL,
                 from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_BUSINESS_TEMPLATE_ID,
+                templateId: process.env.SENDGRID_QUICKENQUIRY_BUSINESS_TEMPLATE_ID,
                 dynamicTemplateData: {
                     company_name: process.env.COMPANY_NAME,
                     enquiry_type: 'Quick Enquiry',
@@ -32,7 +32,7 @@ export const emailService = {
             await sgMail.send({
                 to: enquiryData.email,
                 from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_CUSTOMER_TEMPLATE_ID,
+                templateId: process.env.SENDGRID_QUICKENQUIRY_CUSTOMER_TEMPLATE_ID,
                 dynamicTemplateData: {
                     company_name: process.env.COMPANY_NAME,
                     customer_name: enquiryData.name,
@@ -242,6 +242,55 @@ export const emailService = {
             console.log('Quote customer confirmation sent');
         } catch (error) {
             console.error('Error sending quote customer confirmation:', error);
+            throw error;
+        }
+    },
+
+    async sendBookingAdminNotification(customerDetails, bookingDetails) {
+        try {
+            await sgMail.send({
+                to: process.env.ADMIN_EMAIL,
+                from: process.env.SENDGRID_FROM_EMAIL,
+                subject: `New Booking #${bookingDetails.bookingNumber} - ${bookingDetails.serviceType}`,
+                templateId: process.env.SENDGRID_ADMIN_BOOKING_TEMPLATE_ID,
+                dynamicTemplateData: {
+                    customerName: `${customerDetails.firstName} ${customerDetails.lastName}`,
+                    bookingNumber: bookingDetails.bookingNumber,
+                    serviceType: bookingDetails.serviceType,
+                    scheduledDate: customerDetails.date,
+                    scheduledTime: customerDetails.time,
+                    customerEmail: customerDetails.email,
+                    customerPhone: customerDetails.phone,
+                    totalPrice: bookingDetails.totalPrice
+                }
+            });
+            console.log('Admin booking notification sent');
+        } catch (error) {
+            console.error('Error sending admin booking notification:', error);
+            throw error;
+        }
+    },
+
+    async sendBookingCustomerConfirmation(customerDetails, bookingDetails) {
+        try {
+            await sgMail.send({
+                to: customerDetails.email,
+                from: process.env.SENDGRID_FROM_EMAIL,
+                subject: `Booking Confirmation - ${bookingDetails.serviceType} Service #${bookingDetails.bookingNumber}`,
+                templateId: process.env.SENDGRID_CUSTOMER_BOOKING_TEMPLATE_ID,
+                dynamicTemplateData: {
+                    customerName: customerDetails.firstName,
+                    bookingNumber: bookingDetails.bookingNumber,
+                    serviceType: bookingDetails.serviceType,
+                    scheduledDate: customerDetails.date,
+                    scheduledTime: customerDetails.time,
+                    totalPrice: bookingDetails.totalPrice,
+                    address: customerDetails.address
+                }
+            });
+            console.log('Customer booking confirmation sent');
+        } catch (error) {
+            console.error('Error sending customer booking confirmation:', error);
             throw error;
         }
     }

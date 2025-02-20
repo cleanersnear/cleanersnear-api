@@ -1,6 +1,7 @@
 import express from 'express';
 import { Router } from 'express';
 import { supabase } from '../config/supabase.js';
+import { handleBookingNotification } from './notification/notification.js';
 
 // Import service handlers directly
 import carpetCleaningHandler from './services/carpetcleaning.js';
@@ -84,7 +85,7 @@ router.post('/', async (req, res) => {
             .insert({
                 booking_number: bookingNumber,
                 service_type: serviceType,
-                status: 'pending',
+                status: 'pending', 
                 created_at: createdAt,
                 location: {
                     suburb: location.name,      // Frontend sends name for suburb
@@ -107,6 +108,12 @@ router.post('/', async (req, res) => {
                 email: customerDetails.email,
                 phone: customerDetails.phone,
                 address: customerDetails.address,
+                scheduling: {
+                    date: customerDetails.date,
+                    time: customerDetails.time,
+                    is_flexible_date: customerDetails.isFlexibleDate,
+                    is_flexible_time: customerDetails.isFlexibleTime
+                },
                 created_at: createdAt
             })
             .select()
@@ -146,6 +153,44 @@ router.post('/', async (req, res) => {
                 total_price: serviceResult.totalPrice
             })
             .eq('id', bookingData.id);
+
+        // After successful booking creation
+        // const result = await processBooking(serviceType, serviceDetails);
+        
+        // Trigger notifications after successful booking
+        // This runs after sending success response to avoid delay
+        process.nextTick(() => {
+            handleBookingNotification(
+                // Send all customer data
+                {
+                    firstName: customerDetails.firstName,
+                    lastName: customerDetails.lastName,
+                    email: customerDetails.email,
+                    phone: customerDetails.phone,
+                    address: customerDetails.address,
+                    date: customerDetails.date,
+                    time: customerDetails.time,
+                    isFlexibleDate: customerDetails.isFlexibleDate,
+                    isFlexibleTime: customerDetails.isFlexibleTime
+                }, 
+                // Send all booking data
+                {
+                    bookingId: bookingData.id,
+                    bookingNumber: bookingData.booking_number,
+                    serviceType: serviceType,
+                    status: bookingData.status,
+                    createdAt: bookingData.created_at,
+                    location: bookingData.location,
+                    totalPrice: serviceResult.totalPrice,
+                    scheduling: {
+                        date: customerDetails.date,
+                        time: customerDetails.time,
+                        isFlexibleDate: customerDetails.isFlexibleDate,
+                        isFlexibleTime: customerDetails.isFlexibleTime
+                    }
+                }
+            );
+        });
 
         // 7. Return response matching booking.ts expectations
         return res.status(201).json({

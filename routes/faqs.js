@@ -3,7 +3,7 @@ import { supabase } from '../config/supabase.js';
 
 const router = express.Router();
 
-router.get('/', async (req, res) => {
+router.get('/', async (req, res) => { 
     try {
         // Get query parameters for filtering
         const { category, search } = req.query;
