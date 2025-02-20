@@ -159,8 +159,12 @@ router.post('/', async (req, res) => {
         
         // Trigger notifications after successful booking
         // This runs after sending success response to avoid delay
-        process.nextTick(() => {
-            handleBookingNotification(
+        
+        // Instead of process.nextTick, handle notification before sending response
+        try {
+            console.log('Starting notification process for booking:', bookingData.booking_number);
+            
+            await handleBookingNotification(
                 // Send all customer data
                 {
                     firstName: customerDetails.firstName,
@@ -190,7 +194,17 @@ router.post('/', async (req, res) => {
                     }
                 }
             );
-        });
+
+            console.log('Notification process completed for booking:', bookingData.booking_number);
+        } catch (notificationError) {
+            // Log but don't fail the booking
+            console.error('Notification error:', {
+                bookingNumber: bookingData.booking_number,
+                error: notificationError.message,
+                stack: notificationError.stack
+            });
+        }
+
 
         // 7. Return response matching booking.ts expectations
         return res.status(201).json({
