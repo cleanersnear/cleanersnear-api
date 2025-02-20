@@ -46,7 +46,7 @@ const saveNotificationToDatabase = async (customerDetails, bookingDetails) => {
 const sendCustomerConfirmation = async (customerDetails, bookingDetails) => {
     try {
         // Wait for 5 minutes
-        await new Promise(resolve => setTimeout(resolve, 5 * 60 * 1000));
+        
 
         await emailService.sendBookingCustomerConfirmation(customerDetails, bookingDetails);
         console.log('Customer confirmation email sent successfully');
