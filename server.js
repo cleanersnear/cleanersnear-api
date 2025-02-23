@@ -37,9 +37,9 @@ const port = process.env.PORT || 5000;
 app.use(cors({
     origin: [
         'http://localhost:3000', 
-        'https://cleanersnear.com.au',
-        'https://www.cleanersnear.com.au',
-        'https://api.cleanersnear.com.au'
+        'https://cleaningprofessionals.com.au',
+        'https://www.cleaningprofessionals.com.au',
+        'https://api.cleaningprofessionals.com.au'
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
