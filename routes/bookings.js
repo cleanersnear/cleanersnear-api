@@ -126,12 +126,7 @@ router.post('/', async (req, res) => {
             .from('bookings')
             .update({ 
                 customer_id: customerData.id,
-                scheduling: {
-                    date: customerDetails.date,
-                    time: customerDetails.time,
-                    is_flexible_date: customerDetails.isFlexibleDate,
-                    is_flexible_time: customerDetails.isFlexibleTime
-                }
+                
             })
             .eq('id', bookingData.id);
 
