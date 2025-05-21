@@ -53,9 +53,9 @@ const ndisCleanHandler = {
             return {
                 success: true,
                 message: 'NDIS cleaning service created successfully',
+                totalPrice: serviceData.total_price,
                 data: {
                     bookingId,
-                    totalPrice: serviceData.total_price,
                     serviceConfig: serviceData
                 }
             };
