@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../../config/supabase.js';
+import { handleQuickBookingNotification } from '../notification/notification.js';
 
 const router = Router();
 
@@ -147,6 +148,57 @@ router.post('/', async (req, res) => {
         if (updateError) {
             console.error('Error updating booking with customer ID:', updateError);
             return res.status(500).json({ success: false, message: 'Failed to link booking to customer', error: updateError.message });
+        }
+
+        // Trigger notifications after successful booking
+        try {
+            console.log('Starting notification process for quick booking:', bookingData.booking_number);
+            
+            await handleQuickBookingNotification(
+                // Send customer details
+                {
+                    firstName: booking.contactInfo.firstName,
+                    lastName: booking.contactInfo.lastName,
+                    email: booking.contactInfo.email,
+                    phone: booking.contactInfo.phone,
+                    address: `${booking.address?.street}, ${booking.address?.suburb}, ${booking.address?.state} ${booking.address?.postcode}`,
+                    date: booking.bookingPreferences?.preferredDate,
+                    time: booking.bookingPreferences?.timePreference,
+                    isFlexibleDate: false,
+                    isFlexibleTime: false
+                },
+                // Send booking details
+                {
+                    bookingId: bookingData.id,
+                    bookingNumber: bookingData.booking_number,
+                    serviceType: booking.serviceType,
+                    status: 'pending',
+                    createdAt: bookingData.created_at,
+                    location: {
+                        suburb: booking.address?.suburb,
+                        postcode: booking.address?.postcode,
+                        state: booking.address?.state
+                    },
+                    totalPrice: booking.totalPrice,
+                    scheduling: {
+                        date: booking.bookingPreferences?.preferredDate,
+                        time: booking.bookingPreferences?.timePreference
+                    },
+                    frequency: booking.frequency,
+                    minHours: booking.minHours,
+                    baseRate: booking.baseRate,
+                    totalHours: booking.totalHours
+                }
+            );
+
+            console.log('Notification process completed for quick booking:', bookingData.booking_number);
+        } catch (notificationError) {
+            // Log but don't fail the booking
+            console.error('Notification error:', {
+                bookingNumber: bookingData.booking_number,
+                error: notificationError.message,
+                stack: notificationError.stack
+            });
         }
 
         return res.status(201).json({

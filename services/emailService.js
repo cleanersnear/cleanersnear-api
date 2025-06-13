@@ -293,5 +293,71 @@ export const emailService = {
             console.error('Error sending customer booking confirmation:', error);
             throw error;
         }
+    },
+
+    async sendQuickBookingAdminNotification(customerDetails, bookingDetails) {
+        try {
+            await sgMail.send({
+                to: process.env.ADMIN_EMAIL,
+                from: process.env.SENDGRID_FROM_EMAIL,
+                subject: `New Quick Booking #${bookingDetails.bookingNumber} - ${bookingDetails.serviceType}`,
+                templateId: process.env.SENDGRID_QUICK_BOOKING_ADMIN_TEMPLATE_ID,
+                dynamicTemplateData: {
+                    customerName: `${customerDetails.firstName} ${customerDetails.lastName}`,
+                    bookingNumber: bookingDetails.bookingNumber,
+                    serviceType: bookingDetails.serviceType,
+                    scheduledDate: customerDetails.date,
+                    scheduledTime: customerDetails.time,
+                    customerEmail: customerDetails.email,
+                    customerPhone: customerDetails.phone,
+                    totalPrice: bookingDetails.totalPrice,
+                    address: customerDetails.address,
+                    bookingType: bookingDetails.bookingType,
+                    frequency: bookingDetails.frequency,
+                    minHours: bookingDetails.minHours,
+                    minAmount: bookingDetails.minAmount,
+                    baseRate: bookingDetails.baseRate,
+                    extraHours: bookingDetails.extraHours,
+                    totalHours: bookingDetails.totalHours
+                }
+            });
+            console.log('Quick booking admin notification sent');
+        } catch (error) {
+            console.error('Error sending quick booking admin notification:', error);
+            throw error;
+        }
+    },
+
+    async sendQuickBookingCustomerConfirmation(customerDetails, bookingDetails) {
+        try {
+            await sgMail.send({
+                to: customerDetails.email,
+                from: process.env.SENDGRID_FROM_EMAIL,
+                subject: `Quick Booking Confirmation - ${bookingDetails.serviceType} Service #${bookingDetails.bookingNumber}`,
+                templateId: process.env.SENDGRID_QUICK_BOOKING_CUSTOMER_TEMPLATE_ID,
+                dynamicTemplateData: {
+                    customerName: customerDetails.firstName,
+                    bookingNumber: bookingDetails.bookingNumber,
+                    serviceType: bookingDetails.serviceType,
+                    frequency: bookingDetails.frequency,
+                    address: customerDetails.address,
+                    scheduledDate: customerDetails.date,
+                    scheduledTime: customerDetails.time,
+                    totalHours: bookingDetails.totalHours,
+                    totalPrice: bookingDetails.totalPrice,
+                    minHours: bookingDetails.minHours,
+                    baseRate: bookingDetails.baseRate,
+                    // Company details
+                    companyLogo: process.env.COMPANY_LOGO_URL,
+                    companyEmail: process.env.COMPANY_EMAIL,
+                    companyPhone: process.env.COMPANY_PHONE,
+                    operatingHours: process.env.COMPANY_OPERATING_HOURS
+                }
+            });
+            console.log('Quick booking customer confirmation sent');
+        } catch (error) {
+            console.error('Error sending quick booking customer confirmation:', error);
+            throw error;
+        }
     }
 }; 
