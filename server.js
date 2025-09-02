@@ -28,6 +28,7 @@ import tileAndFloorCleanRouter from './routes/services/tileandfloorclean.js';
 import windowCleanRouter from './routes/services/windowclean.js';
 import blogRoutes from './routes/blog.js';
 import bookingRouter from './routes/book/booking.js';
+import airbnbCleaningRouter from './routes/services/airbnbcleaning.js';
 
 // Load environment variables
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
@@ -101,6 +102,7 @@ app.use('/api/services/tileandfloorclean', tileAndFloorCleanRouter);
 app.use('/api/services/windowclean', windowCleanRouter);
 app.use('/api/blog', blogRoutes);
 app.use('/api/book/booking', bookingRouter);
+app.use('/api/services/airbnbcleaning', airbnbCleaningRouter);
 
 // Add this for debugging
 console.log('Available routes:', app._router.stack
