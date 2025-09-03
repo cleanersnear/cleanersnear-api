@@ -359,5 +359,74 @@ export const emailService = {
             console.error('Error sending quick booking customer confirmation:', error);
             throw error;
         }
+    },
+
+    async sendAirbnbBookingAdminNotification(customerDetails, bookingDetails) {
+        try {
+            await sgMail.send({
+                to: process.env.ADMIN_EMAIL,
+                from: process.env.SENDGRID_FROM_EMAIL,
+                subject: `New Airbnb Booking #${bookingDetails.bookingNumber} - ${bookingDetails.serviceType}`,
+                templateId: process.env.SENDGRID_AIRBNB_BOOKING_ADMIN_TEMPLATE_ID,
+                dynamicTemplateData: {
+                    customerName: `${customerDetails.firstName} ${customerDetails.lastName}`,
+                    bookingNumber: bookingDetails.bookingNumber,
+                    serviceType: bookingDetails.serviceType,
+                    scheduledDate: customerDetails.date,
+                    scheduledTime: customerDetails.time,
+                    customerEmail: customerDetails.email,
+                    customerPhone: customerDetails.phone,
+                    totalPrice: bookingDetails.totalPrice,
+                    address: customerDetails.address,
+                    bedrooms: bookingDetails.bedrooms,
+                    bathrooms: bookingDetails.bathrooms,
+                    toilets: bookingDetails.toilets,
+                    hours: bookingDetails.hours,
+                    extras: bookingDetails.extras?.join(', ') || 'None',
+                    basePrice: bookingDetails.basePrice,
+                    discount: bookingDetails.discount
+                }
+            });
+            console.log('Airbnb booking admin notification sent');
+        } catch (error) {
+            console.error('Error sending Airbnb booking admin notification:', error);
+            throw error;
+        }
+    },
+
+    async sendAirbnbBookingCustomerConfirmation(customerDetails, bookingDetails) {
+        try {
+            await sgMail.send({
+                to: customerDetails.email,
+                from: process.env.SENDGRID_FROM_EMAIL,
+                subject: `Airbnb Booking Confirmation - ${bookingDetails.serviceType} Service #${bookingDetails.bookingNumber}`,
+                templateId: process.env.SENDGRID_AIRBNB_BOOKING_CUSTOMER_TEMPLATE_ID,
+                dynamicTemplateData: {
+                    customerName: customerDetails.firstName,
+                    bookingNumber: bookingDetails.bookingNumber,
+                    serviceType: bookingDetails.serviceType,
+                    address: customerDetails.address,
+                    scheduledDate: customerDetails.date,
+                    scheduledTime: customerDetails.time,
+                    totalHours: bookingDetails.hours,
+                    totalPrice: bookingDetails.totalPrice,
+                    bedrooms: bookingDetails.bedrooms,
+                    bathrooms: bookingDetails.bathrooms,
+                    toilets: bookingDetails.toilets,
+                    extras: bookingDetails.extras?.join(', ') || 'None',
+                    basePrice: bookingDetails.basePrice,
+                    discount: bookingDetails.discount,
+                    // Company details
+                    companyLogo: process.env.COMPANY_LOGO_URL,
+                    companyEmail: process.env.COMPANY_EMAIL,
+                    companyPhone: process.env.COMPANY_PHONE,
+                    operatingHours: process.env.COMPANY_OPERATING_HOURS
+                }
+            });
+            console.log('Airbnb booking customer confirmation sent');
+        } catch (error) {
+            console.error('Error sending Airbnb booking customer confirmation:', error);
+            throw error;
+        }
     }
 }; 

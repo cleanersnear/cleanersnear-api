@@ -128,4 +128,62 @@ export const handleQuickBookingNotification = async (customerDetails, bookingDet
         console.error('Error in quick booking notification handler:', error);
         // Don't throw error - we don't want to affect the main booking flow
     }
+};
+
+// Save Airbnb booking notification to database
+const saveAirbnbNotificationToDatabase = async (customerDetails, bookingDetails) => {
+    try {
+        const { data, error } = await supabase
+            .from('notifications')
+            .insert({
+                type: 'new_airbnb_booking',
+                title: 'New Airbnb Booking Received',
+                content: `New Airbnb booking #${bookingDetails.bookingNumber} from ${customerDetails.firstName} ${customerDetails.lastName}`,
+                // Do NOT include booking_id to avoid foreign key constraint for Airbnb bookings
+                status: 'unread',
+                metadata: {
+                    customerName: `${customerDetails.firstName} ${customerDetails.lastName}`,
+                    bookingNumber: bookingDetails.bookingNumber,
+                    serviceType: bookingDetails.serviceType,
+                    scheduledDate: customerDetails.date,
+                    scheduledTime: customerDetails.time,
+                    customerEmail: customerDetails.email,
+                    customerPhone: customerDetails.phone,
+                    totalPrice: bookingDetails.totalPrice,
+                    address: customerDetails.address,
+                    bedrooms: bookingDetails.bedrooms,
+                    bathrooms: bookingDetails.bathrooms,
+                    toilets: bookingDetails.toilets,
+                    hours: bookingDetails.hours,
+                    extras: bookingDetails.extras,
+                    basePrice: bookingDetails.basePrice,
+                    discount: bookingDetails.discount
+                },
+                created_at: new Date().toISOString()
+            });
+
+        if (error) throw error;
+        console.log('Airbnb booking notification saved to database');
+    } catch (error) {
+        console.error('Error saving Airbnb booking notification:', error);
+    }
+};
+
+// Airbnb booking notification handler
+export const handleAirbnbBookingNotification = async (customerDetails, bookingDetails) => {
+    try {
+        // 1. Send immediate admin notification
+        await emailService.sendAirbnbBookingAdminNotification(customerDetails, bookingDetails);
+
+        // 2. Save notification to database
+        await saveAirbnbNotificationToDatabase(customerDetails, bookingDetails);
+
+        // 3. Send delayed customer confirmation (non-blocking)
+        emailService.sendAirbnbBookingCustomerConfirmation(customerDetails, bookingDetails);
+
+        console.log('All Airbnb booking notifications processed successfully');
+    } catch (error) {
+        console.error('Error in Airbnb booking notification handler:', error);
+        // Don't throw error - we don't want to affect the main booking flow
+    }
 }; 

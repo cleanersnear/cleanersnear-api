@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabase } from '../../config/supabase.js';
+import { handleAirbnbBookingNotification } from '../notification/notification.js';
 
 const router = express.Router();
 
@@ -383,6 +384,51 @@ router.post('/submit-extras', async (req, res) => {
         updateData: updateData,
         bookingNumber: bookingNumber
       });
+    }
+
+    // Trigger notifications after successful booking completion
+    try {
+        console.log('Starting notification process for Airbnb booking:', bookingNumber);
+        
+        await handleAirbnbBookingNotification(
+            // Send customer details
+            {
+                firstName: existingBooking.name.split(' ')[0] || existingBooking.name,
+                lastName: existingBooking.name.split(' ').slice(1).join(' ') || '',
+                email: existingBooking.email,
+                phone: existingBooking.phone,
+                address: existingBooking.propertyAddress,
+                date: date,
+                time: time
+            },
+            // Send booking details
+            {
+                bookingNumber: bookingNumber,
+                serviceType: existingBooking.serviceType,
+                scheduledDate: date,
+                scheduledTime: time,
+                customerEmail: existingBooking.email,
+                customerPhone: existingBooking.phone,
+                totalPrice: existingBooking.finalPrice,
+                address: existingBooking.propertyAddress,
+                bedrooms: existingBooking.bedrooms,
+                bathrooms: existingBooking.bathrooms,
+                toilets: existingBooking.toilets,
+                hours: existingBooking.hours,
+                extras: extras || [],
+                basePrice: existingBooking.basePrice,
+                discount: existingBooking.discount
+            }
+        );
+
+        console.log('Notification process completed for Airbnb booking:', bookingNumber);
+    } catch (notificationError) {
+        // Log but don't fail the booking
+        console.error('Notification error:', {
+            bookingNumber: bookingNumber,
+            error: notificationError.message,
+            stack: notificationError.stack
+        });
     }
 
     res.json({
