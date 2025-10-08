@@ -1,238 +1,250 @@
-import express from 'express';
-import { Router } from 'express';
-import { supabase } from '../config/supabase.js';
-import { handleBookingNotification } from './notification/notification.js';
+const express = require('express');
+const router = express.Router();
+const { createNormalizedBooking, getNormalizedBookingByNumber } = require('../database/normalized_bookings');
+const { sendAdminBookingNotification } = require('../services/emailService');
+const { logNotification, updateNotificationStatus } = require('../database/notifications');
 
-// Import service handlers directly
-import carpetCleaningHandler from './services/carpetcleaning.js';
-import endOfLeaseHandler from './services/endoflease.js';
-import generalCleaningHandler from './services/generalcleaning.js';
-import deepCleaningHandler from './services/deepcleaning.js';
-import moveInOutHandler from './services/moveinout.js';
-import ndisCleanHandler from './services/ndisclean.js';
-import commercialCleanHandler from './services/commercialclean.js';
-import ovenCleanHandler from './services/ovenclean.js';
-import renovationCleanHandler from './services/renovationclean.js';
-import tileAndFloorHandler from './services/tileandfloorclean.js';
-import upholsteryCleanHandler from './services/upholsteryclean.js';
-import windowCleanHandler from './services/windowclean.js';
+// ============================================================================
+// BOOKING ROUTES
+// ============================================================================
 
-
-const router = Router();
-
-// Service type mapping for handlers - Match frontend IDs
-const SERVICE_HANDLERS = {
-    'carpet-cleaning': carpetCleaningHandler,        // Match frontend
-    'end-of-lease-cleaning': endOfLeaseHandler,      // Match frontend
-    'general-cleaning': generalCleaningHandler,
-    'deep-cleaning': deepCleaningHandler,
-    'move-in-cleaning': moveInOutHandler,
-    'ndis-cleaning': ndisCleanHandler,
-    'commercial-cleaning': commercialCleanHandler,
- 
-    // Other services
-    'after-renovation-cleaning': renovationCleanHandler,
-    'oven-cleaning': ovenCleanHandler,
-    'tile-and-floor-cleaning': tileAndFloorHandler,
-    'upholstery-cleaning': upholsteryCleanHandler,
-    'window-cleaning': windowCleanHandler
-};
-
-// Add unified service type validation
-const VALID_SERVICE_TYPES = [
-    // Popular services
-    'carpet-cleaning',
-    'end-of-lease-cleaning',
-    'general-cleaning',
-    'deep-cleaning',
-    'move-in-cleaning',
-    'ndis-cleaning',
-    'commercial-cleaning',
-    // Other services
-    'after-renovation-cleaning',
-    'oven-cleaning',
-    'tile-and-floor-cleaning',
-    'upholstery-cleaning',
-    'window-cleaning'
-];
-
-// Create new booking
-router.post('/', async (req, res) => {
-    try {
-        const {
-            serviceType,
-            location,
-            serviceDetails,
-            customerDetails,
-            createdAt = new Date().toISOString()
-        } = req.body;
-
-        // Add service type validation
-        if (!VALID_SERVICE_TYPES.includes(serviceType)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Failed to create booking',
-                error: `Invalid service type: ${serviceType}`
-            });
-        }
-
-        // 1. Generate booking number
-        const bookingNumber = await generateBookingNumber();
-
-        // 2. Create basic booking record with corrected location structure
-        const { data: bookingData, error: bookingError } = await supabase
-            .from('bookings')
-            .insert({
-                booking_number: bookingNumber,
-                service_type: serviceType,
-                status: 'pending', 
-                created_at: createdAt,
-                location: {
-                    suburb: location.name,      // Frontend sends name for suburb
-                    postcode: location.postcode,
-                    state: location.region      // Frontend sends region for state
-                }
-            })
-            .select()
-            .single();
-
-        if (bookingError) throw bookingError;
-
-        // 3. Create customer record
-        const { data: customerData, error: customerError } = await supabase
-            .from('customers')
-            .insert({
-                booking_id: bookingData.id,
-                first_name: customerDetails.firstName,
-                last_name: customerDetails.lastName,
-                email: customerDetails.email,
-                phone: customerDetails.phone,
-                address: customerDetails.address,
-                scheduling: {
-                    date: customerDetails.date,
-                    time: customerDetails.time,
-                    is_flexible_date: customerDetails.isFlexibleDate,
-                    is_flexible_time: customerDetails.isFlexibleTime
-                },
-                created_at: createdAt
-            })
-            .select()
-            .single();
-
-        if (customerError) throw customerError;
-
-        // 4. Update booking with customer ID and scheduling
-        await supabase
-            .from('bookings')
-            .update({ 
-                customer_id: customerData.id,
-                
-            })
-            .eq('id', bookingData.id);
-
-        // 5. Forward to service-specific handler
-        const serviceHandler = SERVICE_HANDLERS[serviceType];
-        if (!serviceHandler) {
-            throw new Error(`No handler found for service type: ${serviceType}`);
-        }
-
-        const serviceResult = await serviceHandler.processBooking({
-            bookingId: bookingData.id,
-            serviceDetails
-        });
-
-        // 6. Update booking with price from service handler
-        await supabase
-            .from('bookings')
-            .update({
-                total_price: serviceResult.totalPrice
-            })
-            .eq('id', bookingData.id);
-
-        // After successful booking creation
-        // const result = await processBooking(serviceType, serviceDetails);
-        
-        // Trigger notifications after successful booking
-        // This runs after sending success response to avoid delay
-        
-        // Instead of process.nextTick, handle notification before sending response
-        try {
-            console.log('Starting notification process for booking:', bookingData.booking_number);
-            
-            await handleBookingNotification(
-                // Send all customer data
-                {
-                    firstName: customerDetails.firstName,
-                    lastName: customerDetails.lastName,
-                    email: customerDetails.email,
-                    phone: customerDetails.phone,
-                    address: customerDetails.address,
-                    date: customerDetails.date,
-                    time: customerDetails.time,
-                    isFlexibleDate: customerDetails.isFlexibleDate,
-                    isFlexibleTime: customerDetails.isFlexibleTime
-                }, 
-                // Send all booking data
-                {
-                    bookingId: bookingData.id,
-                    bookingNumber: bookingData.booking_number,
-                    serviceType: serviceType,
-                    status: bookingData.status,
-                    createdAt: bookingData.created_at,
-                    location: bookingData.location,
-                    totalPrice: serviceResult.totalPrice,
-                    scheduling: {
-                        date: customerDetails.date,
-                        time: customerDetails.time,
-                        isFlexibleDate: customerDetails.isFlexibleDate,
-                        isFlexibleTime: customerDetails.isFlexibleTime
-                    }
-                }
-            );
-
-            console.log('Notification process completed for booking:', bookingData.booking_number);
-        } catch (notificationError) {
-            // Log but don't fail the booking
-            console.error('Notification error:', {
-                bookingNumber: bookingData.booking_number,
-                error: notificationError.message,
-                stack: notificationError.stack
-            });
-        }
-
-
-        // 7. Return response matching booking.ts expectations
-        return res.status(201).json({
-            success: true,
-            bookingId: bookingData.id,
-            bookingNumber: bookingData.booking_number,
-            message: 'Booking created successfully'
-        });
-
-    } catch (error) {
-        console.error('Booking error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Failed to create booking',
-            error: error.message
-        });
-    }
+// GET /api/bookings - Health/info for bookings route
+router.get('/', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Bookings API is reachable',
+      method: 'GET',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Health check failed' });
+  }
 });
 
-// Helper function to generate booking number
-async function generateBookingNumber() {
-    const { data: latestBooking } = await supabase
-        .from('bookings')
-        .select('booking_number')
-        .order('created_at', { ascending: false })
-        .limit(1);
+// POST /api/bookings - Create new booking
+router.post('/', async (req, res) => {
+  try {
+    const bookingData = req.body;
+    
+    console.log('📝 Booking started');
 
-    let nextNumber = 1;
-    if (latestBooking?.[0]) {
-        nextNumber = parseInt(latestBooking[0].booking_number.split('-')[1]) + 1;
+    // Validate required fields
+    if (!bookingData.selectedService) {
+      return res.status(400).json({
+        success: false,
+        bookingNumber: '',
+        status: 'error',
+        message: 'Service selection is required'
+      });
     }
 
-    return `BK-${nextNumber.toString().padStart(4, '0')}`;
+    if (!bookingData.customerDetails?.firstName || !bookingData.customerDetails?.lastName) {
+      return res.status(400).json({
+        success: false,
+        bookingNumber: '',
+        status: 'error',
+        message: 'Customer name is required'
+      });
+    }
+
+    if (!bookingData.customerDetails?.email) {
+      return res.status(400).json({
+        success: false,
+        bookingNumber: '',
+        status: 'error',
+        message: 'Customer email is required'
+      });
+    }
+
+    if (!bookingData.customerDetails?.phone) {
+      return res.status(400).json({
+        success: false,
+        bookingNumber: '',
+        status: 'error',
+        message: 'Customer phone number is required'
+      });
+    }
+
+    if (!bookingData.customerDetails?.address) {
+      return res.status(400).json({
+        success: false,
+        bookingNumber: '',
+        status: 'error',
+        message: 'Service address is required'
+      });
+    }
+
+    if (!bookingData.customerDetails?.scheduleDate) {
+      return res.status(400).json({
+        success: false,
+        bookingNumber: '',
+        status: 'error',
+        message: 'Schedule date is required'
+      });
+    }
+
+    // Create booking in normalized database structure
+    const result = await createNormalizedBooking(bookingData);
+    
+    console.log('💾 Booking saved');
+
+    // Send admin notification email and log notification (async - don't block response)
+    handleAdminNotification(result)
+      .catch(error => {
+        // Don't throw error - booking was successful, notification is secondary
+      });
+    
+    res.status(200).json(result);
+
+  } catch (error) {
+    console.error('❌ Booking creation error:', error);
+    
+    res.status(500).json({
+      success: false,
+      bookingNumber: '',
+      status: 'error',
+      message: 'An unexpected error occurred. Please try again later.'
+    });
+  }
+});
+
+// GET /api/bookings/:bookingNumber - Get booking by number
+router.get('/:bookingNumber', async (req, res) => {
+  try {
+    const { bookingNumber } = req.params;
+    
+
+    // Retrieve from normalized database
+    const booking = await getNormalizedBookingByNumber(bookingNumber);
+    
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+    
+    // Return the complete booking data (already formatted by getNormalizedBookingByNumber)
+    res.status(200).json({
+      success: true,
+      bookingNumber: booking.booking_number,
+      status: booking.status,
+      selectedService: booking.selected_service,
+      customerDetails: {
+        firstName: booking.first_name,
+        lastName: booking.last_name,
+        email: booking.email,
+        phone: booking.phone,
+        address: booking.address,
+        postcode: booking.postcode,
+        suburb: booking.suburb,
+        scheduleDate: booking.schedule_date,
+        notes: booking.notes,
+        ndisDetails: booking.ndis_number || booking.plan_manager ? {
+          ndisNumber: booking.ndis_number,
+          planManager: booking.plan_manager
+        } : null,
+        commercialDetails: booking.business_name || booking.business_type || booking.abn || booking.contact_person ? {
+          businessName: booking.business_name,
+          businessType: booking.business_type,
+          abn: booking.abn,
+          contactPerson: booking.contact_person
+        } : null,
+        endOfLeaseDetails: booking.end_of_lease_role ? {
+          role: booking.end_of_lease_role
+        } : null
+      },
+      serviceDetails: booking.serviceDetails,
+      pricing: booking.pricing,
+      createdAt: booking.created_at,
+      updatedAt: booking.updated_at
+    });
+
+  } catch (error) {
+    console.error('❌ Get booking error:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve booking'
+    });
+  }
+});
+
+/**
+ * Handle admin notification after successful booking creation
+ * This function runs asynchronously and doesn't block the booking response
+ * @param {Object} bookingResult - Result from createNormalizedBooking
+ */
+async function handleAdminNotification(bookingResult) {
+  try {
+    const { bookingNumber, data: bookingData } = bookingResult;
+    
+    if (!bookingData) {
+      console.error('❌ No booking data available for notification');
+      return;
+    }
+
+
+    // 1. Log the notification attempt in database
+    const notificationLog = await logNotification({
+      booking_id: bookingData.id,
+      booking_number: bookingNumber,
+      notification_type: 'booking_created',
+      title: `New Booking Created - ${bookingNumber}`,
+      message: `A new ${bookingData.selected_service} booking has been created for ${bookingData.first_name} ${bookingData.last_name}`,
+      delivery_method: 'email',
+      recipient_email: process.env.SENDGRID_BUSINESS_EMAIL,
+      status: 'pending'
+    });
+
+    if (!notificationLog.success) {
+      return;
+    }
+
+    const notificationId = notificationLog.notificationId;
+
+    // 2. Send email to admin
+    const emailResult = await sendAdminBookingNotification(bookingData);
+
+    if (emailResult.success) {
+      // 3. Update notification status to sent
+      await updateNotificationStatus(notificationId, {
+        status: 'sent',
+        external_id: emailResult.messageId,
+        external_status: `Email sent successfully (Status: ${emailResult.statusCode})`,
+        sent_at: new Date().toISOString()
+      });
+
+      console.log('📧 Email sent');
+
+    } else {
+      // 4. Update notification status to failed
+      await updateNotificationStatus(notificationId, {
+        status: 'failed',
+        error_message: emailResult.error,
+        retry_count: 1
+      });
+
+    }
+
+  } catch (error) {
+    // Try to log the error in notification table if possible
+    try {
+      await logNotification({
+        booking_id: bookingResult.data?.id || null,
+        booking_number: bookingResult.bookingNumber || 'unknown',
+        notification_type: 'admin_alert',
+        title: 'Admin Notification Error',
+        message: `Failed to send admin notification: ${error.message}`,
+        delivery_method: 'internal',
+        status: 'failed',
+        error_message: error.message
+      });
+    } catch (logError) {
+      // Silent fail
+    }
+  }
 }
 
-export default router; 
+module.exports = router;

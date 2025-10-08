@@ -1,12 +1,12 @@
-import express from 'express';
-import { supabase } from '../config/supabase.js';
+const express = require('express');
+const { supabaseOld } = require('../config/oldSupabase');
 
 const router = express.Router();
 
 // Get all slugs for static generation
 router.get('/slugs', async (req, res) => {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseOld
             .from('blog')
             .select('slug')
             .order('publish_date', { ascending: false });
@@ -26,7 +26,7 @@ router.get('/slugs', async (req, res) => {
 // Get hero blog for static generation
 router.get('/hero', async (req, res) => {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseOld
             .from('blog')
             .select(`
                 slug,
@@ -74,7 +74,7 @@ router.get('/hero', async (req, res) => {
 router.get('/latest', async (req, res) => {
     try {
         // Get all blogs without pagination
-        const { data, error } = await supabase
+        const { data, error } = await supabaseOld
             .from('blog')
             .select(`
                 slug,
@@ -129,7 +129,7 @@ router.get('/top', async (req, res) => {
         const limit = parseInt(req.query.limit) || 3;
         const excludeSlug = req.query.excludeSlug;
 
-        let query = supabase
+        let query = supabaseOld
             .from('blog')
             .select(`
                 slug,
@@ -191,7 +191,7 @@ router.get('/search/data', async (req, res) => {
             return res.json({ blogs: [] });
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseOld
             .from('blog')
             .select(`
                 slug,
@@ -238,7 +238,7 @@ router.get('/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
 
-        const { data: blog, error: blogError } = await supabase
+        const { data: blog, error: blogError } = await supabaseOld
             .from('blog')
             .select(`
                 *,
@@ -294,4 +294,4 @@ router.get('/:slug', async (req, res) => {
     }
 });
 
-export default router;
+module.exports = router; 

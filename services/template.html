@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Booking Notification - Cleaner Home</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f4f4f4;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        
+        .header {
+            background-color: #ff6b35;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .header p {
+            color: #ffffff;
+            margin: 5px 0 0 0;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .booking-number {
+            background-color: #e8f5e8;
+            border: 2px solid #28a745;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        
+        .booking-number h2 {
+            color: #28a745;
+            margin: 0;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .booking-number p {
+            color: #155724;
+            margin: 5px 0 0 0;
+            font-size: 12px;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        
+        .section:last-child {
+            border-bottom: none;
+        }
+        
+        .section h3 {
+            color: #ff6b35;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            font-weight: bold;
+            border-bottom: 2px solid #ff6b35;
+            padding-bottom: 5px;
+        }
+        
+        .info-row {
+            margin-bottom: 8px;
+            display: table;
+            width: 100%;
+        }
+        
+        .info-label {
+            display: table-cell;
+            width: 30%;
+            font-weight: bold;
+            color: #555;
+            vertical-align: top;
+        }
+        
+        .info-value {
+            display: table-cell;
+            width: 70%;
+            color: #333;
+            vertical-align: top;
+        }
+        
+        .pricing-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #28a745;
+        }
+        
+        .pricing-section h4 {
+            color: #28a745;
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .total-price {
+            font-size: 18px;
+            font-weight: bold;
+            color: #28a745;
+            text-align: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .footer {
+            background-color: #343a40;
+            color: #ffffff;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .footer a {
+            color: #ff6b35;
+            text-decoration: none;
+        }
+        
+        .priority-badge {
+            background-color: #dc3545;
+            color: #ffffff;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+        
+        .action-buttons {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #ff6b35;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .btn:hover {
+            background-color: #e55a2b;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏠 Cleaner Home</h1>
+            <p>New Booking Notification</p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <!-- Priority Badge -->
+            <div class="priority-badge">New Booking</div>
+            
+            <!-- Booking Number -->
+            <div class="booking-number">
+                <h2>BOOKING_NUMBER_PLACEHOLDER</h2>
+                <p>Booking Created Successfully</p>
+            </div>
+            
+            <!-- Customer Information -->
+            <div class="section">
+                <h3>👤 Customer Information</h3>
+                <div class="info-row">
+                    <div class="info-label">Name:</div>
+                    <div class="info-value">CUSTOMER_NAME_PLACEHOLDER</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Email:</div>
+                    <div class="info-value">CUSTOMER_EMAIL_PLACEHOLDER</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Phone:</div>
+                    <div class="info-value">CUSTOMER_PHONE_PLACEHOLDER</div>
+                </div>
+            </div>
+            
+            <!-- Service Information -->
+            <div class="section">
+                <h3>🧹 Service Information</h3>
+                <div class="info-row">
+                    <div class="info-label">Service Type:</div>
+                    <div class="info-value">SERVICE_TYPE_PLACEHOLDER</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Scheduled Date:</div>
+                    <div class="info-value">SCHEDULED_DATE_PLACEHOLDER</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Service Address:</div>
+                    <div class="info-value">SERVICE_ADDRESS_PLACEHOLDER</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">Booking Date:</div>
+                    <div class="info-value">BOOKING_DATE_PLACEHOLDER</div>
+                </div>
+            </div>
+            
+            <!-- Service Details -->
+            <div class="section">
+                <h3>📋 Service Details</h3>
+                <div class="info-row">
+                    <div class="info-label">Details:</div>
+                    <div class="info-value">SERVICE_DETAILS_PLACEHOLDER</div>
+                </div>
+            </div>
+            
+            <!-- Pricing Information -->
+            <div class="pricing-section">
+                <h4>💰 Pricing Breakdown</h4>
+                <div class="info-row">
+                    <div class="info-label">Pricing:</div>
+                    <div class="info-value">PRICING_DETAILS_PLACEHOLDER</div>
+                </div>
+                <div class="total-price">Total: $TOTAL_PRICE_PLACEHOLDER</div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <a href="mailto:CUSTOMER_EMAIL_PLACEHOLDER" class="btn">Reply to Customer</a>
+                <a href="tel:CUSTOMER_PHONE_PLACEHOLDER" class="btn btn-secondary">Call Customer</a>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Cleaner Home</strong> - Automated Booking System</p>
+            <p>Booking Status: <strong>BOOKING_STATUS_PLACEHOLDER</strong></p>
+            <p>Support: <a href="mailto:account@cleanerhome.com.au">account@cleanerhome.com.au</a></p>
+        </div>
+    </div>
+</body>
+</html>

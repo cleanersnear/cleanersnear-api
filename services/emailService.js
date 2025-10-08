@@ -1,432 +1,640 @@
-import sgMail from '@sendgrid/mail';
+const sgMail = require('@sendgrid/mail');
 
+// Initialize SendGrid
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-export const emailService = {
-    async sendBusinessNotification(enquiryData) {
-        try {
-            await sgMail.send({
-                to: process.env.SENDGRID_BUSINESS_EMAIL,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_QUICKENQUIRY_BUSINESS_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    company_name: process.env.COMPANY_NAME,
-                    enquiry_type: 'Quick Enquiry',
-                    customer_name: enquiryData.name,
-                    customer_email: enquiryData.email,
-                    customer_phone: enquiryData.phone,
-                    customer_address: enquiryData.address,
-                    service_type: enquiryData.service,
-                    submission_date: new Date().toLocaleString()
-                }
-            });
-            console.log('Business notification email sent');
-        } catch (error) {
-            console.error('Error sending business notification:', error);
-            throw error;
-        }
-    },
+/**
+ * Send admin notification email for new booking
+ * @param {Object} bookingData - Complete booking data from database
+ * @returns {Object} - Email sending result
+ */
+async function sendAdminBookingNotification(bookingData) {
+  try {
+    const {
+      booking_number,
+      first_name,
+      last_name,
+      email,
+      phone,
+      address,
+      suburb,
+      postcode,
+      schedule_date,
+      selected_service,
+      serviceDetails,
+      pricing,
+      notes
+    } = bookingData;
 
-    async sendCustomerConfirmation(enquiryData) {
-        try {
-            await sgMail.send({
-                to: enquiryData.email,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_QUICKENQUIRY_CUSTOMER_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    company_name: process.env.COMPANY_NAME,
-                    customer_name: enquiryData.name,
-                    service_type: enquiryData.service,
-                    submission_date: new Date().toLocaleString()
-                }
-            });
-            console.log('Customer confirmation email sent');
-        } catch (error) {
-            console.error('Error sending customer confirmation:', error);
-            throw error;
-        }
-    },
-
-    async sendCostCalculatorBusinessNotification(calculatorData) {
-        try {
-            await sgMail.send({
-                to: process.env.SENDGRID_BUSINESS_EMAIL,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_COST_CALCULATOR_BUSINESS_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    company_name: process.env.COMPANY_NAME,
-                    enquiry_type: 'Cost Calculator',
-                    customer_name: calculatorData.name,
-                    customer_email: calculatorData.email,
-                    customer_phone: calculatorData.phone,
-                    customer_address: calculatorData.address,
-                    service_type: calculatorData.service,
-                    clean_type: calculatorData.typeOfClean,
-                    notes: calculatorData.notes || 'No additional notes',
-                    submission_date: new Date().toLocaleString()
-                }
-            });
-            console.log('Cost calculator business notification sent');
-        } catch (error) {
-            console.error('Error sending cost calculator business notification:', error);
-            throw error;
-        }
-    },
-
-    async sendCostCalculatorCustomerConfirmation(calculatorData) {
-        try {
-            await sgMail.send({
-                to: calculatorData.email,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_COST_CALCULATOR_CUSTOMER_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    company_name: process.env.COMPANY_NAME,
-                    customer_name: calculatorData.name,
-                    service_type: calculatorData.service,
-                    clean_type: calculatorData.typeOfClean,
-                    submission_date: new Date().toLocaleString()
-                }
-            });
-            console.log('Cost calculator customer confirmation sent');
-        } catch (error) {
-            console.error('Error sending cost calculator customer confirmation:', error);
-            throw error;
-        }
-    },
-
-    async sendSubscriptionConfirmation({ email }) {
-        try {
-            await sgMail.send({
-                to: email,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_SUBSCRIPTION_CUSTOMER_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    company_name: process.env.COMPANY_NAME,
-                    submission_date: new Date().toLocaleString()
-                }
-            });
-            console.log('Subscription confirmation sent');
-        } catch (error) {
-            console.error('Error sending subscription confirmation:', error);
-            throw error;
-        }
-    },
-
-    async sendSubscriptionNotification({ email }) {
-        try {
-            await sgMail.send({
-                to: process.env.SENDGRID_BUSINESS_EMAIL,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_SUBSCRIPTION_BUSINESS_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    company_name: process.env.COMPANY_NAME,
-                    subscriber_email: email,
-                    submission_date: new Date().toLocaleString()
-                }
-            });
-            console.log('Subscription notification sent');
-        } catch (error) {
-            console.error('Error sending subscription notification:', error);
-            throw error;
-        }
-    },
-
-    async sendContactFormBusinessNotification(contactData) {
-        try {
-            await sgMail.send({
-                to: process.env.SENDGRID_BUSINESS_EMAIL,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_CONTACT_BUSINESS_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    company_name: process.env.COMPANY_NAME,
-                    customer_name: contactData.name,
-                    customer_email: contactData.email,
-                    customer_phone: contactData.phone,
-                    customer_address: contactData.address || 'Not provided',
-                    subject: contactData.subject,
-                    message: contactData.message,
-                    submission_date: new Date().toLocaleString()
-                }
-            });
-            console.log('Contact form business notification sent');
-        } catch (error) {
-            console.error('Error sending contact form business notification:', error);
-            throw error;
-        }
-    },
-
-    async sendContactFormCustomerConfirmation(contactData) {
-        try {
-            await sgMail.send({
-                to: contactData.email,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_CONTACT_CUSTOMER_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    company_name: process.env.COMPANY_NAME,
-                    customer_name: contactData.name,
-                    subject: contactData.subject,
-                    submission_date: new Date().toLocaleString()
-                }
-            });
-            console.log('Contact form customer confirmation sent');
-        } catch (error) {
-            console.error('Error sending contact form customer confirmation:', error);
-            throw error;
-        }
-    },
-
-    async sendQuoteBusinessNotification(quoteData) {
-        try {
-            await sgMail.send({
-                to: process.env.SENDGRID_BUSINESS_EMAIL,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_QUOTE_BUSINESS_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    company_name: process.env.COMPANY_NAME,
-                    // Service Details
-                    serviceType: quoteData.serviceType || 'Not specified',
-                    cleaningType: quoteData.cleaningType || 'Not specified',
-                    frequency: quoteData.frequency || 'Not specified',
-                    
-                    // Property Details
-                    propertyType: quoteData.propertyType || 'Not specified',
-                    bedrooms: quoteData.bedrooms || 'Not specified',
-                    bathrooms: quoteData.bathrooms || 'Not specified',
-                    rateType: quoteData.rateType || 'Not specified',
-                    
-                    // Schedule
-                    preferredDate: quoteData.preferredDate || 'Not specified',
-                    preferredTime: quoteData.preferredTime || 'Not specified',
-                    parkingAvailable: quoteData.parkingAvailable || 'Not specified',
-                    access: quoteData.access || 'Not specified',
-                    
-                    // Customer Details
-                    customerName: quoteData.name,
-                    customerCompany: quoteData.companyName || 'Not specified',
-                    customerEmail: quoteData.email,
-                    customerPhone: quoteData.phone,
-                    customerAddress: quoteData.streetAddress,
-                    customerSuburb: quoteData.suburb,
-                    customerState: quoteData.state,
-                    customerPostcode: quoteData.postCode,
-                    customerNotes: quoteData.notes || 'No notes provided',
-                    
-                    // Metadata
-                    submissionDate: new Date().toLocaleString()
-                }
-            });
-            console.log('Quote business notification sent');
-        } catch (error) {
-            console.error('Error sending quote business notification:', error);
-            throw error;
-        }
-    },
-
-    async sendQuoteCustomerConfirmation(quoteData) {
-        try {
-            await sgMail.send({
-                to: quoteData.email,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                templateId: process.env.SENDGRID_QUOTE_CUSTOMER_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    company_name: process.env.COMPANY_NAME,
-                    customerName: quoteData.name,
-                    serviceType: quoteData.serviceType || 'Not specified',
-                    cleaningType: quoteData.cleaningType || 'Not specified',
-                    preferredDate: quoteData.preferredDate || 'Not specified',
-                    preferredTime: quoteData.preferredTime || 'Not specified',
-                    submissionDate: new Date().toLocaleString(),
-                    quoteReference: `Q${Date.now().toString().slice(-6)}` // Generate a simple reference number
-                }
-            });
-            console.log('Quote customer confirmation sent');
-        } catch (error) {
-            console.error('Error sending quote customer confirmation:', error);
-            throw error;
-        }
-    },
-
-    async sendBookingAdminNotification(customerDetails, bookingDetails) {
-        try {
-            await sgMail.send({
-                to: process.env.ADMIN_EMAIL,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                subject: `New Booking #${bookingDetails.bookingNumber} - ${bookingDetails.serviceType}`,
-                templateId: process.env.SENDGRID_ADMIN_BOOKING_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    customerName: `${customerDetails.firstName} ${customerDetails.lastName}`,
-                    bookingNumber: bookingDetails.bookingNumber,
-                    serviceType: bookingDetails.serviceType,
-                    scheduledDate: customerDetails.date,
-                    scheduledTime: customerDetails.time,
-                    customerEmail: customerDetails.email,
-                    customerPhone: customerDetails.phone,
-                    totalPrice: bookingDetails.totalPrice
-                }
-            });
-            console.log('Admin booking notification sent');
-        } catch (error) {
-            console.error('Error sending admin booking notification:', error);
-            throw error;
-        }
-    },
-
-    async sendBookingCustomerConfirmation(customerDetails, bookingDetails) {
-        try {
-            await sgMail.send({
-                to: customerDetails.email,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                subject: `Booking Confirmation - ${bookingDetails.serviceType} Service #${bookingDetails.bookingNumber}`,
-                templateId: process.env.SENDGRID_CUSTOMER_BOOKING_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    customerName: customerDetails.firstName,
-                    bookingNumber: bookingDetails.bookingNumber,
-                    serviceType: bookingDetails.serviceType,
-                    scheduledDate: customerDetails.date,
-                    scheduledTime: customerDetails.time,
-                    totalPrice: bookingDetails.totalPrice,
-                    address: customerDetails.address
-                }
-            });
-            console.log('Customer booking confirmation sent');
-        } catch (error) {
-            console.error('Error sending customer booking confirmation:', error);
-            throw error;
-        }
-    },
-
-    async sendQuickBookingAdminNotification(customerDetails, bookingDetails) {
-        try {
-            await sgMail.send({
-                to: process.env.ADMIN_EMAIL,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                subject: `New Quick Booking #${bookingDetails.bookingNumber} - ${bookingDetails.serviceType}`,
-                templateId: process.env.SENDGRID_QUICK_BOOKING_ADMIN_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    customerName: `${customerDetails.firstName} ${customerDetails.lastName}`,
-                    bookingNumber: bookingDetails.bookingNumber,
-                    serviceType: bookingDetails.serviceType,
-                    scheduledDate: customerDetails.date,
-                    scheduledTime: customerDetails.time,
-                    customerEmail: customerDetails.email,
-                    customerPhone: customerDetails.phone,
-                    totalPrice: bookingDetails.totalPrice,
-                    address: customerDetails.address,
-                    bookingType: bookingDetails.bookingType,
-                    frequency: bookingDetails.frequency,
-                    minHours: bookingDetails.minHours,
-                    minAmount: bookingDetails.minAmount,
-                    baseRate: bookingDetails.baseRate,
-                    extraHours: bookingDetails.extraHours,
-                    totalHours: bookingDetails.totalHours
-                }
-            });
-            console.log('Quick booking admin notification sent');
-        } catch (error) {
-            console.error('Error sending quick booking admin notification:', error);
-            throw error;
-        }
-    },
-
-    async sendQuickBookingCustomerConfirmation(customerDetails, bookingDetails) {
-        try {
-            await sgMail.send({
-                to: customerDetails.email,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                subject: `Quick Booking Confirmation - ${bookingDetails.serviceType} Service #${bookingDetails.bookingNumber}`,
-                templateId: process.env.SENDGRID_QUICK_BOOKING_CUSTOMER_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    customerName: customerDetails.firstName,
-                    bookingNumber: bookingDetails.bookingNumber,
-                    serviceType: bookingDetails.serviceType,
-                    frequency: bookingDetails.frequency,
-                    address: customerDetails.address,
-                    scheduledDate: customerDetails.date,
-                    scheduledTime: customerDetails.time,
-                    totalHours: bookingDetails.totalHours,
-                    totalPrice: bookingDetails.totalPrice,
-                    minHours: bookingDetails.minHours,
-                    baseRate: bookingDetails.baseRate,
-                    // Company details
-                    companyLogo: process.env.COMPANY_LOGO_URL,
-                    companyEmail: process.env.COMPANY_EMAIL,
-                    companyPhone: process.env.COMPANY_PHONE,
-                    operatingHours: process.env.COMPANY_OPERATING_HOURS
-                }
-            });
-            console.log('Quick booking customer confirmation sent');
-        } catch (error) {
-            console.error('Error sending quick booking customer confirmation:', error);
-            throw error;
-        }
-    },
-
-    async sendAirbnbBookingAdminNotification(customerDetails, bookingDetails) {
-        try {
-            await sgMail.send({
-                to: process.env.ADMIN_EMAIL,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                subject: `New Airbnb Booking #${bookingDetails.bookingNumber} - ${bookingDetails.serviceType}`,
-                templateId: process.env.SENDGRID_AIRBNB_BOOKING_ADMIN_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    customerName: `${customerDetails.firstName} ${customerDetails.lastName}`,
-                    bookingNumber: bookingDetails.bookingNumber,
-                    serviceType: bookingDetails.serviceType,
-                    scheduledDate: customerDetails.date,
-                    scheduledTime: customerDetails.time,
-                    customerEmail: customerDetails.email,
-                    customerPhone: customerDetails.phone,
-                    totalPrice: bookingDetails.totalPrice,
-                    address: customerDetails.address,
-                    bedrooms: bookingDetails.bedrooms,
-                    bathrooms: bookingDetails.bathrooms,
-                    toilets: bookingDetails.toilets,
-                    hours: bookingDetails.hours,
-                    extras: bookingDetails.extras?.join(', ') || 'None',
-                    basePrice: bookingDetails.basePrice,
-                    discount: bookingDetails.discount
-                }
-            });
-            console.log('Airbnb booking admin notification sent');
-        } catch (error) {
-            console.error('Error sending Airbnb booking admin notification:', error);
-            throw error;
-        }
-    },
-
-    async sendAirbnbBookingCustomerConfirmation(customerDetails, bookingDetails) {
-        try {
-            await sgMail.send({
-                to: customerDetails.email,
-                from: process.env.SENDGRID_FROM_EMAIL,
-                subject: `Airbnb Booking Confirmation - ${bookingDetails.serviceType} Service #${bookingDetails.bookingNumber}`,
-                templateId: process.env.SENDGRID_AIRBNB_BOOKING_CUSTOMER_TEMPLATE_ID,
-                dynamicTemplateData: {
-                    customerName: customerDetails.firstName,
-                    bookingNumber: bookingDetails.bookingNumber,
-                    serviceType: bookingDetails.serviceType,
-                    address: customerDetails.address,
-                    scheduledDate: customerDetails.date,
-                    scheduledTime: customerDetails.time,
-                    totalHours: bookingDetails.hours,
-                    totalPrice: bookingDetails.totalPrice,
-                    bedrooms: bookingDetails.bedrooms,
-                    bathrooms: bookingDetails.bathrooms,
-                    toilets: bookingDetails.toilets,
-                    extras: bookingDetails.extras?.join(', ') || 'None',
-                    basePrice: bookingDetails.basePrice,
-                    discount: bookingDetails.discount,
-                    // Company details
-                    companyLogo: process.env.COMPANY_LOGO_URL,
-                    companyEmail: process.env.COMPANY_EMAIL,
-                    companyPhone: process.env.COMPANY_PHONE,
-                    operatingHours: process.env.COMPANY_OPERATING_HOURS
-                }
-            });
-            console.log('Airbnb booking customer confirmation sent');
-        } catch (error) {
-            console.error('Error sending Airbnb booking customer confirmation:', error);
-            throw error;
-        }
+    // Validate required environment variables
+    if (!process.env.SENDGRID_BUSINESS_EMAIL) {
+      throw new Error('SENDGRID_BUSINESS_EMAIL environment variable is not set');
     }
-}; 
+    if (!process.env.SENDGRID_FROM_EMAIL) {
+      throw new Error('SENDGRID_FROM_EMAIL environment variable is not set');
+    }
+
+    // Try SendGrid dynamic template first, fallback to HTML template
+    const templateId = process.env.SENDGRID_ADMIN_BOOKING_TEMPLATE_ID || process.env.CLEANER_HOME_ADMIN_BOOKING;
+    
+    let emailData;
+    
+    if (false && templateId && templateId !== 'd-cb42ab4ff69f435ab7e17cb1379f225b') {
+      // Use SendGrid dynamic template
+      emailData = {
+        to: process.env.SENDGRID_BUSINESS_EMAIL,
+        from: process.env.SENDGRID_FROM_EMAIL,
+        templateId: templateId,
+        dynamicTemplateData: {
+          // Booking Information
+          booking_number,
+          service_type: selected_service,
+          
+          // Customer Information
+          customer_name: `${first_name} ${last_name}`,
+          customer_email: email,
+          customer_phone: phone,
+          customer_address: address,
+          suburb: suburb || 'Not specified',
+          postcode: postcode || 'Not specified',
+          
+          // Service Details
+          schedule_date: new Date(schedule_date).toLocaleDateString('en-AU', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          }),
+          
+          // Service-specific details
+          service_details: formatServiceDetails(serviceDetails, selected_service),
+          
+          // Pricing
+          total_price: pricing?.totalPrice ? `$${pricing.totalPrice.toFixed(2)}` : 'Price not calculated',
+          pricing_breakdown: formatPricingBreakdown(pricing),
+          
+          // Additional Information
+          notes: notes || 'No additional notes',
+          
+          // Company Information
+          company_name: process.env.COMPANY_NAME || 'Cleaner Home',
+          
+          // Timestamps
+          booking_created: new Date().toLocaleDateString('en-AU', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        }
+      };
+    } else {
+      // Use HTML template with placeholder replacement
+      const htmlContent = await generateHtmlEmail(bookingData);
+      
+      emailData = {
+        to: process.env.SENDGRID_BUSINESS_EMAIL,
+        from: process.env.SENDGRID_FROM_EMAIL,
+        subject: `New Booking Created - ${booking_number}`,
+        html: htmlContent
+      };
+    }
+
+    const response = await sgMail.send(emailData);
+    
+    console.log('📧 Email sent');
+
+    return {
+      success: true,
+      messageId: response[0].headers['x-message-id'],
+      statusCode: response[0].statusCode,
+      email: process.env.SENDGRID_BUSINESS_EMAIL
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      response: error.response?.body
+    };
+  }
+}
+
+/**
+ * Format service details for email template
+ * @param {Object} serviceDetails - Service-specific details
+ * @param {String} serviceType - Type of service
+ * @returns {String} - Formatted service details
+ */
+function formatServiceDetails(serviceDetails, serviceType) {
+  if (!serviceDetails) return 'No service details available';
+
+  try {
+    const details = typeof serviceDetails === 'string' ? JSON.parse(serviceDetails) : serviceDetails;
+    
+    switch (serviceType) {
+      case 'Regular Cleaning':
+        return `
+          • Frequency: ${details.frequency || 'Not specified'}
+          • Duration: ${details.duration || 'Not specified'} hours
+          • Cleaning Type: ${details.cleaningType || 'Not specified'}
+          • Preferred Time: ${details.preferredTime || 'Not specified'}
+        `;
+        
+      case 'Once-off Cleaning':
+        return `
+          • Property Size: ${details.propertySize || 'Not specified'}
+          • Cleaning Type: ${details.cleaningType || 'Not specified'}
+          • Duration: ${details.duration || 'Not specified'} hours
+          • Preferred Time: ${details.preferredTime || 'Not specified'}
+        `;
+        
+      case 'End of Lease Cleaning':
+        return `
+          • Property Size: ${details.propertySize || 'Not specified'}
+          • Bond Cleaning: ${details.bondCleaning ? 'Yes' : 'No'}
+          • Carpet Cleaning: ${details.carpetCleaning ? 'Yes' : 'No'}
+          • Window Cleaning: ${details.windowCleaning ? 'Yes' : 'No'}
+          • Preferred Time: ${details.preferredTime || 'Not specified'}
+        `;
+        
+      case 'Airbnb Cleaning':
+        return `
+          • Property Size: ${details.propertySize || 'Not specified'}
+          • Cleaning Type: ${details.cleaningType || 'Not specified'}
+          • Duration: ${details.duration || 'Not specified'} hours
+          • Total Hours: ${details.totalHours || 'Not specified'} hours
+          • Preferred Time: ${details.preferredTime || 'Not specified'}
+        `;
+        
+      case 'Commercial Cleaning':
+        return `
+          • Business Type: ${details.businessType || 'Not specified'}
+          • Property Size: ${details.propertySize || 'Not specified'}
+          • Cleaning Frequency: ${details.frequency || 'Not specified'}
+          • Selected Hours: ${details.selectedHours || 'Not specified'} hours
+          • Preferred Time: ${details.preferredTime || 'Not specified'}
+        `;
+        
+      case 'NDIS Cleaning':
+        return `
+          • NDIS Number: ${details.ndisNumber || 'Not provided'}
+          • Plan Manager: ${details.planManager || 'Not provided'}
+          • Property Size: ${details.propertySize || 'Not specified'}
+          • Cleaning Type: ${details.cleaningType || 'Not specified'}
+          • Duration: ${details.duration || 'Not specified'} hours
+          • Additional Hours: ${details.additionalHours || 0} hours
+          • Preferred Time: ${details.preferredTime || 'Not specified'}
+        `;
+        
+      default:
+        return JSON.stringify(details, null, 2);
+    }
+  } catch (error) {
+    return 'Service details available but formatting failed';
+  }
+}
+
+/**
+ * Format pricing breakdown for email template
+ * @param {Object} pricing - Pricing information
+ * @returns {String} - Formatted pricing breakdown
+ */
+function formatPricingBreakdown(pricing) {
+  if (!pricing) return 'No pricing information available';
+
+  try {
+    const breakdown = [];
+    
+    if (pricing.basePrice) {
+      breakdown.push(`• Base Price: $${pricing.basePrice.toFixed(2)}`);
+    }
+    
+    if (pricing.additionalFees && Object.keys(pricing.additionalFees).length > 0) {
+      breakdown.push('• Additional Fees:');
+      Object.entries(pricing.additionalFees).forEach(([key, value]) => {
+        if (value > 0) {
+          breakdown.push(`  - ${key}: $${value.toFixed(2)}`);
+        }
+      });
+    }
+    
+    if (pricing.discounts && Object.keys(pricing.discounts).length > 0) {
+      breakdown.push('• Discounts:');
+      Object.entries(pricing.discounts).forEach(([key, value]) => {
+        if (value > 0) {
+          breakdown.push(`  - ${key}: -$${value.toFixed(2)}`);
+        }
+      });
+    }
+    
+    if (pricing.totalPrice) {
+      breakdown.push(`• Total Price: $${pricing.totalPrice.toFixed(2)}`);
+    }
+    
+    return breakdown.length > 0 ? breakdown.join('\n') : 'No pricing breakdown available';
+    
+  } catch (error) {
+    return 'Pricing breakdown available but formatting failed';
+  }
+}
+
+/**
+ * Generate HTML email content by replacing placeholders in template
+ * @param {Object} bookingData - Complete booking data from database
+ * @returns {String} - HTML email content
+ */
+async function generateHtmlEmail(bookingData) {
+  const fs = require('fs').promises;
+  const path = require('path');
+  
+  try {
+    // Read the HTML template
+    const templatePath = path.join(__dirname, 'template.html');
+    let htmlTemplate = await fs.readFile(templatePath, 'utf8');
+    
+    const {
+      booking_number,
+      first_name,
+      last_name,
+      email,
+      phone,
+      address,
+      suburb,
+      postcode,
+      schedule_date,
+      selected_service,
+      serviceDetails,
+      pricing,
+      notes,
+      status = 'pending'
+    } = bookingData;
+
+    // Replace all placeholders
+    const replacements = {
+      'BOOKING_NUMBER_PLACEHOLDER': booking_number,
+      'CUSTOMER_NAME_PLACEHOLDER': `${first_name} ${last_name}`,
+      'CUSTOMER_EMAIL_PLACEHOLDER': email,
+      'CUSTOMER_PHONE_PLACEHOLDER': phone,
+      'SERVICE_TYPE_PLACEHOLDER': selected_service,
+      'SCHEDULED_DATE_PLACEHOLDER': new Date(schedule_date).toLocaleDateString('en-AU', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }),
+      'SERVICE_ADDRESS_PLACEHOLDER': `${address}, ${suburb || ''} ${postcode || ''}`.trim(),
+      'BOOKING_DATE_PLACEHOLDER': new Date().toLocaleDateString('en-AU', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      'SERVICE_DETAILS_PLACEHOLDER': formatServiceDetails(serviceDetails, selected_service),
+      'PRICING_DETAILS_PLACEHOLDER': formatPricingBreakdown(pricing),
+      'TOTAL_PRICE_PLACEHOLDER': pricing?.totalPrice ? pricing.totalPrice.toFixed(2) : '0.00',
+      'BOOKING_STATUS_PLACEHOLDER': status.charAt(0).toUpperCase() + status.slice(1)
+    };
+
+    // Replace all placeholders
+    Object.entries(replacements).forEach(([placeholder, value]) => {
+      htmlTemplate = htmlTemplate.replace(new RegExp(placeholder, 'g'), value);
+    });
+
+    return htmlTemplate;
+
+  } catch (error) {
+    // Return a simple fallback HTML
+    return `
+      <html>
+        <body>
+          <h2>New Booking Created</h2>
+          <p><strong>Booking Number:</strong> ${bookingData.booking_number}</p>
+          <p><strong>Customer:</strong> ${bookingData.first_name} ${bookingData.last_name}</p>
+          <p><strong>Service:</strong> ${bookingData.selected_service}</p>
+          <p><strong>Email:</strong> ${bookingData.email}</p>
+          <p><strong>Phone:</strong> ${bookingData.phone}</p>
+          <p><strong>Address:</strong> ${bookingData.address}</p>
+          <p><strong>Schedule Date:</strong> ${new Date(bookingData.schedule_date).toLocaleDateString('en-AU')}</p>
+        </body>
+      </html>
+    `;
+  }
+}
+
+module.exports = {
+  sendAdminBookingNotification,
+  sendQuickBookingAdminNotification,
+  sendQuickBookingCustomerConfirmation,
+  sendBookingCustomerConfirmation,
+  sendSubscriptionConfirmation,
+  sendSubscriptionNotification,
+  sendContactFormBusinessNotification,
+  sendContactFormCustomerConfirmation
+};
+
+/**
+ * Send admin notification for Quick-Book bookings
+ * @param {{firstName:string,lastName:string,email:string,phone:string,address:string,date?:string,time?:string}} customerDetails
+ * @param {{bookingId?:number,bookingNumber:string,serviceType:string,status?:string,createdAt?:string,totalPrice?:number,frequency?:string,minHours?:number,baseRate?:number,totalHours?:number}} bookingDetails
+ */
+async function sendQuickBookingAdminNotification(customerDetails, bookingDetails) {
+  try {
+    const templateId = process.env.SENDGRID_QUICK_BOOKING_ADMIN_TEMPLATE_ID;
+    const toEmail = process.env.ADMIN_EMAIL || process.env.SENDGRID_BUSINESS_EMAIL;
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+
+    if (!toEmail || !fromEmail) throw new Error('Missing SENDGRID emails for quick-book admin');
+
+    const msg = templateId ? {
+      to: toEmail,
+      from: fromEmail,
+      templateId,
+      dynamicTemplateData: {
+        customerName: `${customerDetails.firstName} ${customerDetails.lastName}`,
+        bookingNumber: bookingDetails.bookingNumber,
+        serviceType: bookingDetails.serviceType,
+        scheduledDate: customerDetails.date,
+        scheduledTime: customerDetails.time,
+        customerEmail: customerDetails.email,
+        customerPhone: customerDetails.phone,
+        totalPrice: bookingDetails.totalPrice,
+        address: customerDetails.address,
+        bookingType: bookingDetails.bookingType,
+        frequency: bookingDetails.frequency,
+        minHours: bookingDetails.minHours,
+        baseRate: bookingDetails.baseRate,
+        totalHours: bookingDetails.totalHours
+      }
+    } : {
+      to: toEmail,
+      from: fromEmail,
+      subject: `New Quick Booking #${bookingDetails.bookingNumber} - ${bookingDetails.serviceType}`,
+      html: `
+        <h2>New Quick Booking Received</h2>
+        <p><strong>Booking #:</strong> ${bookingDetails.bookingNumber}</p>
+        <p><strong>Service:</strong> ${bookingDetails.serviceType}</p>
+        <p><strong>Customer:</strong> ${customerDetails.firstName} ${customerDetails.lastName}</p>
+        <p><strong>Email:</strong> ${customerDetails.email}</p>
+        <p><strong>Phone:</strong> ${customerDetails.phone}</p>
+        <p><strong>Address:</strong> ${customerDetails.address}</p>
+        <p><strong>Date/Time:</strong> ${customerDetails.date || '-'} ${customerDetails.time || ''}</p>
+        <p><strong>Total Price:</strong> ${bookingDetails.totalPrice ?? '-'}</p>
+      `
+    };
+
+    await sgMail.send(msg);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send customer confirmation for Quick-Book bookings
+ * @param {{firstName:string,email:string,address?:string,date?:string,time?:string}} customerDetails
+ * @param {{bookingNumber:string,serviceType:string,totalPrice?:number,frequency?:string,minHours?:number,baseRate?:number,totalHours?:number}} bookingDetails
+ */
+async function sendQuickBookingCustomerConfirmation(customerDetails, bookingDetails) {
+  try {
+    const templateId = process.env.SENDGRID_QUICK_BOOKING_CUSTOMER_TEMPLATE_ID;
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+    if (!fromEmail) throw new Error('Missing SENDGRID_FROM_EMAIL for quick-book customer');
+
+    const msg = templateId ? {
+      to: customerDetails.email,
+      from: fromEmail,
+      templateId,
+      dynamicTemplateData: {
+        customerName: customerDetails.firstName,
+        bookingNumber: bookingDetails.bookingNumber,
+        serviceType: bookingDetails.serviceType,
+        frequency: bookingDetails.frequency,
+        address: customerDetails.address,
+        scheduledDate: customerDetails.date,
+        scheduledTime: customerDetails.time,
+        totalHours: bookingDetails.totalHours,
+        totalPrice: bookingDetails.totalPrice,
+        minHours: bookingDetails.minHours,
+        baseRate: bookingDetails.baseRate,
+        companyLogo: process.env.COMPANY_LOGO_URL,
+        companyEmail: process.env.COMPANY_EMAIL || fromEmail,
+        companyPhone: process.env.COMPANY_PHONE,
+        operatingHours: process.env.COMPANY_OPERATING_HOURS
+      }
+    } : {
+      to: customerDetails.email,
+      from: fromEmail,
+      subject: `Quick Booking Confirmation - ${bookingDetails.serviceType} #${bookingDetails.bookingNumber}`,
+      html: `
+        <h2>Booking Confirmed</h2>
+        <p>Hi ${customerDetails.firstName}, thanks for booking with us.</p>
+        <p><strong>Booking #:</strong> ${bookingDetails.bookingNumber}</p>
+        <p><strong>Service:</strong> ${bookingDetails.serviceType}</p>
+        <p><strong>Date/Time:</strong> ${customerDetails.date || '-'} ${customerDetails.time || ''}</p>
+        <p><strong>Address:</strong> ${customerDetails.address || '-'}</p>
+        <p><strong>Total:</strong> ${bookingDetails.totalPrice ?? '-'}</p>
+      `
+    };
+
+    await sgMail.send(msg);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send customer confirmation for a full booking (non quick-book)
+ * @param {{first_name:string,last_name?:string,email:string,address?:string}} customer
+ * @param {{booking_number:string,selected_service:string,schedule_date?:string,totalPrice?:number}} booking
+ */
+async function sendBookingCustomerConfirmation(customer, booking) {
+  try {
+    const templateId = process.env.SENDGRID_CUSTOMER_BOOKING_TEMPLATE_ID;
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+    if (!fromEmail) throw new Error('Missing SENDGRID_FROM_EMAIL for booking customer');
+
+    const msg = templateId ? {
+      to: customer.email,
+      from: fromEmail,
+      templateId,
+      dynamicTemplateData: {
+        customerName: `${customer.first_name}${customer.last_name ? ' ' + customer.last_name : ''}`,
+        bookingNumber: booking.booking_number,
+        serviceType: booking.selected_service,
+        scheduledDate: booking.schedule_date,
+        totalPrice: booking.totalPrice,
+        address: customer.address,
+        companyLogo: process.env.COMPANY_LOGO_URL,
+        companyEmail: process.env.COMPANY_EMAIL || fromEmail,
+        companyPhone: process.env.COMPANY_PHONE
+      }
+    } : {
+      to: customer.email,
+      from: fromEmail,
+      subject: `Booking Confirmation - ${booking.selected_service} #${booking.booking_number}`,
+      html: `
+        <h2>Booking Confirmed</h2>
+        <p>Hi ${customer.first_name}${customer.last_name ? ' ' + customer.last_name : ''}, thanks for booking with us.</p>
+        <p><strong>Booking #:</strong> ${booking.booking_number}</p>
+        <p><strong>Service:</strong> ${booking.selected_service}</p>
+        <p><strong>Date:</strong> ${booking.schedule_date || '-'}</p>
+        <p><strong>Address:</strong> ${customer.address || '-'}</p>
+      `
+    };
+
+    await sgMail.send(msg);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send subscription confirmation to customer
+ * @param {{email:string}} param0
+ */
+async function sendSubscriptionConfirmation({ email }) {
+  try {
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+    if (!fromEmail) throw new Error('Missing SENDGRID_FROM_EMAIL for subscription');
+    const templateId = process.env.SENDGRID_SUBSCRIPTION_CUSTOMER_TEMPLATE_ID;
+
+    const msg = templateId ? {
+      to: email,
+      from: fromEmail,
+      templateId,
+      dynamicTemplateData: {
+        company_name: process.env.COMPANY_NAME,
+        submission_date: new Date().toLocaleString()
+      }
+    } : {
+      to: email,
+      from: fromEmail,
+      subject: 'Subscription Confirmed',
+      html: '<p>Thanks for subscribing. We will keep you updated.</p>'
+    };
+
+    await sgMail.send(msg);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Notify business of a new subscription
+ * @param {{email:string}} param0
+ */
+async function sendSubscriptionNotification({ email }) {
+  try {
+    const toEmail = process.env.SENDGRID_BUSINESS_EMAIL;
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+    if (!toEmail || !fromEmail) throw new Error('Missing SENDGRID emails for subscription notification');
+    const templateId = process.env.SENDGRID_SUBSCRIPTION_BUSINESS_TEMPLATE_ID;
+
+    const msg = templateId ? {
+      to: toEmail,
+      from: fromEmail,
+      templateId,
+      dynamicTemplateData: {
+        company_name: process.env.COMPANY_NAME,
+        subscriber_email: email,
+        submission_date: new Date().toLocaleString()
+      }
+    } : {
+      to: toEmail,
+      from: fromEmail,
+      subject: 'New Subscriber',
+      html: `<p>New subscription from: <strong>${email}</strong></p>`
+    };
+
+    await sgMail.send(msg);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Notify business of a new contact form submission
+ * @param {{name:string,email:string,phone?:string,address?:string,subject:string,message:string}} contact
+ */
+async function sendContactFormBusinessNotification(contact) {
+  try {
+    const toEmail = process.env.SENDGRID_BUSINESS_EMAIL;
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+    if (!toEmail || !fromEmail) throw new Error('Missing SENDGRID emails for contact business');
+    const templateId = process.env.SENDGRID_CONTACT_BUSINESS_TEMPLATE_ID;
+
+    const msg = templateId ? {
+      to: toEmail,
+      from: fromEmail,
+      templateId,
+      dynamicTemplateData: {
+        company_name: process.env.COMPANY_NAME,
+        customer_name: contact.name,
+        customer_email: contact.email,
+        customer_phone: contact.phone,
+        customer_address: contact.address || 'Not provided',
+        subject: contact.subject,
+        message: contact.message,
+        submission_date: new Date().toLocaleString()
+      }
+    } : {
+      to: toEmail,
+      from: fromEmail,
+      subject: `New Contact: ${contact.subject}`,
+      html: `
+        <h3>New contact submission</h3>
+        <p><strong>Name:</strong> ${contact.name}</p>
+        <p><strong>Email:</strong> ${contact.email}</p>
+        <p><strong>Phone:</strong> ${contact.phone || '-'}</p>
+        <p><strong>Address:</strong> ${contact.address || '-'}</p>
+        <p><strong>Message:</strong><br/>${contact.message}</p>
+      `
+    };
+
+    await sgMail.send(msg);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send contact form confirmation to customer
+ * @param {{name:string,email:string,subject:string}} contact
+ */
+async function sendContactFormCustomerConfirmation(contact) {
+  try {
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+    if (!fromEmail) throw new Error('Missing SENDGRID_FROM_EMAIL for contact customer');
+    const templateId = process.env.SENDGRID_CONTACT_CUSTOMER_TEMPLATE_ID;
+
+    const msg = templateId ? {
+      to: contact.email,
+      from: fromEmail,
+      templateId,
+      dynamicTemplateData: {
+        company_name: process.env.COMPANY_NAME,
+        customer_name: contact.name,
+        subject: contact.subject,
+        submission_date: new Date().toLocaleString()
+      }
+    } : {
+      to: contact.email,
+      from: fromEmail,
+      subject: 'We received your message',
+      html: `<p>Hi ${contact.name}, thanks for contacting us. We will get back to you shortly.</p>`
+    };
+
+    await sgMail.send(msg);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}

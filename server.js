@@ -1,138 +1,134 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import cookieParser from 'cookie-parser';
-
-import quickEnquiryRoutes from './routes/quickenquiry.js';
-import costCalculatorRoutes from './routes/costcalculator.js';
-import subscriptionRoutes from './routes/subscription.js';
-import contactRoutes from './routes/contact.js';
-import quotesRoutes from './routes/quotes.js';
-import careersRoutes from './routes/careers.js';
-import faqsRoutes from './routes/faqs.js';
-import blogsRoutes from './routes/blogs.js';
-import bookingsRouter from './routes/bookings.js';
-import loginRouter from './routes/book/login.js';
-import deepCleaningRouter from './routes/services/deepcleaning.js';
-import detailsRouter from './routes/details.js';
-import carpetCleaningRouter from './routes/services/carpetcleaning.js';
-import generalCleaningRouter from './routes/services/generalcleaning.js';
-import endOfLeaseRouter from './routes/services/endoflease.js';
-import moveInOutRouter from './routes/services/moveinout.js';
-import ndisCleanRouter from './routes/services/ndisclean.js';
-import commercialCleanRouter from './routes/services/commercialclean.js';
-import upholsteryCleanRouter from './routes/services/upholsteryclean.js';
-import renovationCleanRouter from './routes/services/renovationclean.js';
-import ovenCleanRouter from './routes/services/ovenclean.js';
-import tileAndFloorCleanRouter from './routes/services/tileandfloorclean.js';
-import windowCleanRouter from './routes/services/windowclean.js';
-import blogRoutes from './routes/blog.js';
-import bookingRouter from './routes/book/booking.js';
-import airbnbCleaningRouter from './routes/services/airbnbcleaning.js';
-
-// Load environment variables
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
-dotenv.config({ path: envFile });
+const express = require('express');
+const cors = require('cors');
+const { testConnection } = require('./config/database');
+require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
-// CORS configuration with credentials
+// Create server function for Vercel
+const createServer = () => {
+  return app;
+};
+
+// ============================================================================
+// MIDDLEWARE
+// ============================================================================
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://www.cleaningprofessionals.com.au',
+  'https://cleaningprofessionals.com.au',
+  // Frontend Vercel deployment
+  'https://clean-main-phi.vercel.app'
+].filter(Boolean);
+
 app.use(cors({
-    origin: [
-        'http://localhost:3000', 
-        'https://cleaningprofessionals.com.au',
-        'https://www.cleaningprofessionals.com.au',
-        'https://api.cleaningprofessionals.com.au'
-    ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true
 }));
 
-// Middleware
 app.use(express.json());
-app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
 
-// Security middleware
-app.use((req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    next();
-});
+// ============================================================================
+// ROUTES
+// ============================================================================
 
-// Test route
-app.get('/api/test', (req, res) => {
-    res.json({ message: 'API is working' });
-});
-
-// Add this before your other routes
+// Root endpoint
 app.get('/', (req, res) => {
-    res.json({
-        message: 'CleanersNear API Server',
-        status: 'running',
-        version: '1.0.0'
-    });
+  res.json({ 
+    success: true,
+    message: 'Cleaner Home API is running',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      bookings: '/api/bookings',
+      testDb: '/api/test-db'
+    },
+    timestamp: new Date().toISOString()
+  });
 });
 
-// Routes
-app.use('/api/auth', loginRouter);
-app.use('/api/quickenquiry', quickEnquiryRoutes);
-app.use('/api/costcalculator', costCalculatorRoutes);
-app.use('/api/subscription', subscriptionRoutes);
-app.use('/api/contact', contactRoutes);
-app.use('/api/quotes', quotesRoutes);
-app.use('/api/careers', careersRoutes);
+// Health check endpoint (optional - for monitoring)
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Clean Home API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Import and use routes
+const bookingRoutes = require('./routes/bookings');
+const faqsRoutes = require('./routes/faqs');
+const blogsRoutesOld = require('./routes/blogs');
+const blogRoutesOld = require('./routes/blog');
+const careersRoutesOld = require('./routes/careers');
+const contactRoutes = require('./routes/contact');
+const subscriptionRoutes = require('./routes/subscription');
+const quickBookBookingRoutes = require('./routes/quick-book/booking');
+const quickBookAuthRoutes = require('./routes/quick-book/login');
+const testDbRoutes = require('./routes/test-db');
+
+app.use('/api/bookings', bookingRoutes);
 app.use('/api/faqs', faqsRoutes);
-app.use('/api/blogs', blogsRoutes);
-app.use('/api/bookings', bookingsRouter);
-app.use('/api/services/deepcleaning', deepCleaningRouter);
-app.use('/api/details', detailsRouter);
-app.use('/api/services/carpetcleaning', carpetCleaningRouter);
-app.use('/api/services/generalcleaning', generalCleaningRouter);
-app.use('/api/services/endoflease', endOfLeaseRouter);
-app.use('/api/services/moveinout', moveInOutRouter);
-app.use('/api/services/ndisclean', ndisCleanRouter);
-app.use('/api/services/commercialclean', commercialCleanRouter);
-app.use('/api/services/upholsteryclean', upholsteryCleanRouter);
-app.use('/api/services/renovationclean', renovationCleanRouter);
-app.use('/api/services/ovenclean', ovenCleanRouter);
-app.use('/api/services/tileandfloorclean', tileAndFloorCleanRouter);
-app.use('/api/services/windowclean', windowCleanRouter);
-app.use('/api/blog', blogRoutes);
-app.use('/api/book/booking', bookingRouter);
-app.use('/api/services/airbnbcleaning', airbnbCleaningRouter);
+app.use('/api/blogs', blogsRoutesOld);
+app.use('/api/blog', blogRoutesOld);
+app.use('/api/careers', careersRoutesOld);
+app.use('/api/contact', contactRoutes);
+app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/quick-book/bookings', quickBookBookingRoutes);
+app.use('/api/quick-book/auth', quickBookAuthRoutes);
+app.use('/api/test-db', testDbRoutes);
 
-// Add this for debugging
-console.log('Available routes:', app._router.stack
-    .filter(r => r.route)
-    .map(r => ({
-        path: r.route.path,
-        methods: Object.keys(r.route.methods)
-    }))
-);
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
 
-// Error handling
-app.use((err, req, res, next) => {
-    console.error('Global error handler:', err);
-    res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
-    });
-});
-
-// Add 404 handler
+// 404 handler
 app.use((req, res) => {
-    console.log('404 Not Found:', req.method, req.url);
-    res.status(404).json({
-        success: false,
-        message: 'Route not found'
-    });
+  res.status(404).json({
+    success: false,
+    message: 'API endpoint not found'
+  });
 });
 
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-    console.log(`Test the API at: http://localhost:${port}/api/test`);
-}); 
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('❌ Server Error:', err);
+  
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
+
+// ============================================================================
+// START SERVER (Only for local development)
+// ============================================================================
+
+if (require.main === module) {
+  app.listen(PORT, async () => {
+    console.log(`🚀 Clean Home API server running on port ${PORT}`);
+    console.log(`📡 Health check: http://localhost:${PORT}/health`);
+    console.log(`📝 Bookings API: http://localhost:${PORT}/api/bookings`);
+    console.log(`🧪 Test DB API: http://localhost:${PORT}/api/test-db`);
+    
+    // Test database connection on startup
+    console.log('\n🔍 Testing database connection...');
+    await testConnection();
+  });
+}
+
+// Export for Vercel
+module.exports = app;
+module.exports.createServer = createServer;

@@ -1,6 +1,6 @@
-import express from 'express';
-import { supabase } from '../config/supabase.js';
-import { emailService } from '../services/emailService.js';
+const express = require('express');
+const { supabaseOld } = require('../config/oldSupabase');
+const { emailService } = require('../services/emailService');
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ router.post('/submit', async (req, res) => {
 
         try {
             // Check if email already exists
-            const { data: existingSubscriber, error: checkError } = await supabase
+            const { data: existingSubscriber, error: checkError } = await supabaseOld
                 .from('subscribers')
                 .select()
                 .eq('email', email)
@@ -39,7 +39,7 @@ router.post('/submit', async (req, res) => {
             }
 
             // Insert into Supabase
-            const { data, error: insertError } = await supabase
+            const { data, error: insertError } = await supabaseOld
                 .from('subscribers')
                 .insert([
                     {
@@ -95,4 +95,4 @@ router.post('/submit', async (req, res) => {
     }
 });
 
-export default router; 
+module.exports = router; 

@@ -1,5 +1,5 @@
-import express from 'express';
-import { supabase } from '../config/supabase.js';
+const express = require('express');
+const { supabaseOld } = require('../config/oldSupabase');
 
 const router = express.Router();
 
@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     try {
         const { category, search, featured } = req.query;
 
-        let query = supabase
+        let query = supabaseOld
             .from('blogs')
             .select(`
                 id,
@@ -175,4 +175,4 @@ router.get('/post/:slug', async (req, res) => {
     }
 });
 
-export default router; 
+module.exports = router; 
