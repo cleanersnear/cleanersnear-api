@@ -1,6 +1,6 @@
 const express = require('express');
 const { supabaseOld } = require('../config/oldSupabase');
-const { emailService } = require('../services/emailService');
+const emailService = require('../services/emailService');
 
 const router = express.Router();
 

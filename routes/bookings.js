@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { createNormalizedBooking, getNormalizedBookingByNumber } = require('../database/normalized_bookings');
-const { sendAdminBookingNotification } = require('../services/emailService');
+const { sendAdminBookingNotification, sendBookingCustomerConfirmation } = require('../services/emailService');
 const { logNotification, updateNotificationStatus } = require('../database/notifications');
 
 // ============================================================================
@@ -89,10 +89,11 @@ router.post('/', async (req, res) => {
     
     console.log('💾 Booking saved');
 
-    // Send admin notification email and log notification (async - don't block response)
-    handleAdminNotification(result)
+    // Send email notifications (admin + customer) - async, don't block response
+    handleEmailNotifications(result)
       .catch(error => {
-        // Don't throw error - booking was successful, notification is secondary
+        // Don't throw error - booking was successful, notifications are secondary
+        console.error('⚠️ Notification error (non-critical):', error.message);
       });
     
     res.status(200).json(result);
@@ -172,11 +173,12 @@ router.get('/:bookingNumber', async (req, res) => {
 });
 
 /**
- * Handle admin notification after successful booking creation
+ * Handle email notifications after successful booking creation
+ * Sends both admin notification and customer confirmation
  * This function runs asynchronously and doesn't block the booking response
  * @param {Object} bookingResult - Result from createNormalizedBooking
  */
-async function handleAdminNotification(bookingResult) {
+async function handleEmailNotifications(bookingResult) {
   try {
     const { bookingNumber, data: bookingData } = bookingResult;
     
@@ -185,12 +187,12 @@ async function handleAdminNotification(bookingResult) {
       return;
     }
 
-
-    // 1. Log the notification attempt in database
-    const notificationLog = await logNotification({
+    // === ADMIN NOTIFICATION ===
+    // 1. Log the admin notification attempt in database
+    const adminNotificationLog = await logNotification({
       booking_id: bookingData.id,
       booking_number: bookingNumber,
-      notification_type: 'booking_created',
+      notification_type: 'booking_created_admin',
       title: `New Booking Created - ${bookingNumber}`,
       message: `A new ${bookingData.selected_service} booking has been created for ${bookingData.first_name} ${bookingData.last_name}`,
       delivery_method: 'email',
@@ -198,51 +200,116 @@ async function handleAdminNotification(bookingResult) {
       status: 'pending'
     });
 
-    if (!notificationLog.success) {
-      return;
+    if (adminNotificationLog.success) {
+      const adminNotificationId = adminNotificationLog.notificationId;
+
+      // 2. Send email to admin
+      const adminEmailResult = await sendAdminBookingNotification(bookingData);
+
+      if (adminEmailResult.success) {
+        // 3. Update notification status to sent
+        await updateNotificationStatus(adminNotificationId, {
+          status: 'sent',
+          external_id: adminEmailResult.messageId,
+          external_status: `Admin email sent successfully (Status: ${adminEmailResult.statusCode})`,
+          sent_at: new Date().toISOString()
+        });
+
+        console.log('📧 Admin notification email sent:', {
+          recipient: process.env.SENDGRID_BUSINESS_EMAIL,
+          bookingNumber: bookingNumber,
+          messageId: adminEmailResult.messageId
+        });
+
+      } else {
+        // 4. Update notification status to failed
+        await updateNotificationStatus(adminNotificationId, {
+          status: 'failed',
+          error_message: adminEmailResult.error,
+          retry_count: 1
+        });
+
+        console.error('❌ Admin email failed:', adminEmailResult.error);
+      }
     }
 
-    const notificationId = notificationLog.notificationId;
+    // === CUSTOMER CONFIRMATION ===
+    // 5. Log the customer notification attempt
+    const customerNotificationLog = await logNotification({
+      booking_id: bookingData.id,
+      booking_number: bookingNumber,
+      notification_type: 'booking_confirmation_customer',
+      title: `Booking Confirmation - ${bookingNumber}`,
+      message: `Booking confirmation sent to ${bookingData.first_name} ${bookingData.last_name}`,
+      delivery_method: 'email',
+      recipient_email: bookingData.email,
+      status: 'pending'
+    });
 
-    // 2. Send email to admin
-    const emailResult = await sendAdminBookingNotification(bookingData);
+    if (customerNotificationLog.success) {
+      const customerNotificationId = customerNotificationLog.notificationId;
 
-    if (emailResult.success) {
-      // 3. Update notification status to sent
-      await updateNotificationStatus(notificationId, {
-        status: 'sent',
-        external_id: emailResult.messageId,
-        external_status: `Email sent successfully (Status: ${emailResult.statusCode})`,
-        sent_at: new Date().toISOString()
-      });
+      // 6. Send confirmation email to customer
+      const customerEmailResult = await sendBookingCustomerConfirmation(
+        {
+          first_name: bookingData.first_name,
+          last_name: bookingData.last_name,
+          email: bookingData.email,
+          address: bookingData.address
+        },
+        {
+          booking_number: bookingNumber,
+          selected_service: bookingData.selected_service,
+          schedule_date: bookingData.schedule_date,
+          totalPrice: bookingData.pricing?.totalPrice
+        }
+      );
 
-      console.log('📧 Email sent');
+      if (customerEmailResult.success) {
+        // 7. Update notification status to sent
+        await updateNotificationStatus(customerNotificationId, {
+          status: 'sent',
+          external_id: customerEmailResult.messageId,
+          external_status: `Customer confirmation sent successfully`,
+          sent_at: new Date().toISOString()
+        });
 
-    } else {
-      // 4. Update notification status to failed
-      await updateNotificationStatus(notificationId, {
-        status: 'failed',
-        error_message: emailResult.error,
-        retry_count: 1
-      });
+        console.log('📧 Customer confirmation email sent:', {
+          recipient: bookingData.email,
+          bookingNumber: bookingNumber,
+          messageId: customerEmailResult.messageId
+        });
 
+      } else {
+        // 8. Update notification status to failed
+        await updateNotificationStatus(customerNotificationId, {
+          status: 'failed',
+          error_message: customerEmailResult.error,
+          retry_count: 1
+        });
+
+        console.error('❌ Customer confirmation email failed:', customerEmailResult.error);
+      }
     }
 
   } catch (error) {
+    console.error('❌ Email notification error:', error);
+    
     // Try to log the error in notification table if possible
     try {
       await logNotification({
         booking_id: bookingResult.data?.id || null,
         booking_number: bookingResult.bookingNumber || 'unknown',
-        notification_type: 'admin_alert',
-        title: 'Admin Notification Error',
-        message: `Failed to send admin notification: ${error.message}`,
+        notification_type: 'notification_error',
+        title: 'Email Notification Error',
+        message: `Failed to send email notifications: ${error.message}`,
         delivery_method: 'internal',
         status: 'failed',
         error_message: error.message
       });
     } catch (logError) {
       // Silent fail
+      console.error('⚠️ Could not log notification error:', logError.message);
     }
   }
 }

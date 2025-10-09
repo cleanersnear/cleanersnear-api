@@ -35,11 +35,11 @@ async function sendAdminBookingNotification(bookingData) {
     }
 
     // Try SendGrid dynamic template first, fallback to HTML template
-    const templateId = process.env.SENDGRID_ADMIN_BOOKING_TEMPLATE_ID || process.env.CLEANER_HOME_ADMIN_BOOKING;
+    const templateId = process.env.SENDGRID_ADMIN_BOOKING_TEMPLATE_ID;
     
     let emailData;
     
-    if (false && templateId && templateId !== 'd-cb42ab4ff69f435ab7e17cb1379f225b') {
+    if (templateId) {
       // Use SendGrid dynamic template
       emailData = {
         to: process.env.SENDGRID_BUSINESS_EMAIL,
@@ -103,16 +103,32 @@ async function sendAdminBookingNotification(bookingData) {
 
     const response = await sgMail.send(emailData);
     
-    console.log('📧 Email sent');
+    const messageId = response[0].headers['x-message-id'];
+    const statusCode = response[0].statusCode;
+    
+    console.log('📧 Admin booking notification sent:', {
+      to: process.env.SENDGRID_BUSINESS_EMAIL,
+      bookingNumber: booking_number,
+      service: selected_service,
+      messageId: messageId,
+      statusCode: statusCode,
+      templateUsed: templateId ? 'SendGrid Dynamic Template' : 'HTML Template'
+    });
 
     return {
       success: true,
-      messageId: response[0].headers['x-message-id'],
-      statusCode: response[0].statusCode,
+      messageId: messageId,
+      statusCode: statusCode,
       email: process.env.SENDGRID_BUSINESS_EMAIL
     };
 
   } catch (error) {
+    console.error('❌ Admin booking notification failed:', {
+      bookingNumber: bookingData.booking_number,
+      error: error.message,
+      response: error.response?.body
+    });
+    
     return {
       success: false,
       error: error.message,
@@ -385,9 +401,22 @@ async function sendQuickBookingAdminNotification(customerDetails, bookingDetails
       `
     };
 
-    await sgMail.send(msg);
-    return { success: true };
+    const response = await sgMail.send(msg);
+    
+    console.log('📧 Quick-book admin notification sent:', {
+      to: toEmail,
+      bookingNumber: bookingDetails.bookingNumber,
+      service: bookingDetails.serviceType,
+      messageId: response[0].headers['x-message-id']
+    });
+    
+    return { success: true, messageId: response[0].headers['x-message-id'] };
   } catch (error) {
+    console.error('❌ Quick-book admin notification failed:', {
+      bookingNumber: bookingDetails.bookingNumber,
+      error: error.message
+    });
+    
     return { success: false, error: error.message };
   }
 }
@@ -439,9 +468,23 @@ async function sendQuickBookingCustomerConfirmation(customerDetails, bookingDeta
       `
     };
 
-    await sgMail.send(msg);
-    return { success: true };
+    const response = await sgMail.send(msg);
+    
+    console.log('📧 Quick-book customer confirmation sent:', {
+      to: customerDetails.email,
+      customer: customerDetails.firstName,
+      bookingNumber: bookingDetails.bookingNumber,
+      messageId: response[0].headers['x-message-id']
+    });
+    
+    return { success: true, messageId: response[0].headers['x-message-id'] };
   } catch (error) {
+    console.error('❌ Quick-book customer confirmation failed:', {
+      customer: customerDetails.firstName,
+      email: customerDetails.email,
+      error: error.message
+    });
+    
     return { success: false, error: error.message };
   }
 }
@@ -486,9 +529,25 @@ async function sendBookingCustomerConfirmation(customer, booking) {
       `
     };
 
-    await sgMail.send(msg);
-    return { success: true };
+    const response = await sgMail.send(msg);
+    
+    console.log('📧 Booking customer confirmation sent:', {
+      to: customer.email,
+      customer: `${customer.first_name} ${customer.last_name || ''}`.trim(),
+      bookingNumber: booking.booking_number,
+      service: booking.selected_service,
+      messageId: response[0].headers['x-message-id']
+    });
+    
+    return { success: true, messageId: response[0].headers['x-message-id'] };
   } catch (error) {
+    console.error('❌ Booking customer confirmation failed:', {
+      customer: `${customer.first_name} ${customer.last_name || ''}`.trim(),
+      email: customer.email,
+      bookingNumber: booking.booking_number,
+      error: error.message
+    });
+    
     return { success: false, error: error.message };
   }
 }
