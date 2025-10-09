@@ -160,54 +160,54 @@ function formatServiceDetails(serviceDetails, serviceType) {
         return `
           • Frequency: ${details.frequency || 'Not specified'}
           • Duration: ${details.duration || 'Not specified'} hours
-          • Cleaning Type: ${details.cleaningType || 'Not specified'}
-          • Preferred Time: ${details.preferredTime || 'Not specified'}
+          • Special Requests: ${details.specialRequests || details.special_requests || 'None'}
         `;
         
       case 'Once-off Cleaning':
         return `
-          • Property Size: ${details.propertySize || 'Not specified'}
-          • Cleaning Type: ${details.cleaningType || 'Not specified'}
           • Duration: ${details.duration || 'Not specified'} hours
-          • Preferred Time: ${details.preferredTime || 'Not specified'}
+          • Two Cleaners: ${details.twoCleaners || details.two_cleaners ? 'Yes' : 'No'}
+          • Special Requests: ${details.specialRequests || details.special_requests || 'None'}
         `;
         
       case 'End of Lease Cleaning':
         return `
-          • Property Size: ${details.propertySize || 'Not specified'}
-          • Bond Cleaning: ${details.bondCleaning ? 'Yes' : 'No'}
-          • Carpet Cleaning: ${details.carpetCleaning ? 'Yes' : 'No'}
-          • Window Cleaning: ${details.windowCleaning ? 'Yes' : 'No'}
-          • Preferred Time: ${details.preferredTime || 'Not specified'}
+          • Home Size: ${details.homeSize || details.home_size || 'Not specified'}
+          • Base Bathrooms: ${details.baseBathrooms || details.base_bathrooms || 0}
+          • Extra Bathrooms: ${details.extraBathrooms || details.extra_bathrooms || 0}
+          • Furnished: ${details.furnished ? 'Yes' : 'No'}
+          • Pets: ${details.pets ? 'Yes' : 'No'}
+          • Steam Carpet: ${details.steamCarpet || details.steam_carpet ? 'Yes' : 'No'}
+          • Special Requests: ${details.specialRequests || details.special_requests || 'None'}
         `;
         
       case 'Airbnb Cleaning':
         return `
-          • Property Size: ${details.propertySize || 'Not specified'}
-          • Cleaning Type: ${details.cleaningType || 'Not specified'}
+          • Service Type: ${details.serviceType || details.service_type || 'Not specified'}
+          • Frequency: ${details.frequency || 'Not specified'}
           • Duration: ${details.duration || 'Not specified'} hours
-          • Total Hours: ${details.totalHours || 'Not specified'} hours
-          • Preferred Time: ${details.preferredTime || 'Not specified'}
+          • Linen Change: ${details.linenChange || details.linen_change ? 'Yes' : 'No'}
+          • Restock Amenities: ${details.restockAmenities || details.restock_amenities ? 'Yes' : 'No'}
+          • Special Requests: ${details.specialRequests || details.special_requests || 'None'}
         `;
         
       case 'Commercial Cleaning':
         return `
-          • Business Type: ${details.businessType || 'Not specified'}
+          • Business Type: ${details.businessType || details.service_type || 'Not specified'}
           • Property Size: ${details.propertySize || 'Not specified'}
           • Cleaning Frequency: ${details.frequency || 'Not specified'}
-          • Selected Hours: ${details.selectedHours || 'Not specified'} hours
-          • Preferred Time: ${details.preferredTime || 'Not specified'}
+          • Selected Hours: ${details.selectedHours || details.hours_per_visit || 'Not specified'} hours
+          • Staff Count: ${details.staffCount || details.staff_count || 'Not specified'}
+          • Preferred Time: ${details.preferredTime || details.preferred_time || 'Not specified'}
         `;
         
       case 'NDIS Cleaning':
         return `
           • NDIS Number: ${details.ndisNumber || 'Not provided'}
           • Plan Manager: ${details.planManager || 'Not provided'}
-          • Property Size: ${details.propertySize || 'Not specified'}
-          • Cleaning Type: ${details.cleaningType || 'Not specified'}
+          • Frequency: ${details.frequency || 'Not specified'}
           • Duration: ${details.duration || 'Not specified'} hours
-          • Additional Hours: ${details.additionalHours || 0} hours
-          • Preferred Time: ${details.preferredTime || 'Not specified'}
+          • Special Requests: ${details.specialRequests || details.special_requests || 'None'}
         `;
         
       default:
