@@ -106,13 +106,15 @@ async function sendAdminBookingNotification(bookingData) {
     const messageId = response[0].headers['x-message-id'];
     const statusCode = response[0].statusCode;
     
-    console.log('📧 Admin booking notification sent:', {
+    console.log('✅ Admin booking notification sent via SendGrid:', {
       to: process.env.SENDGRID_BUSINESS_EMAIL,
       bookingNumber: booking_number,
       service: selected_service,
+      customer: `${first_name} ${last_name}`,
       messageId: messageId,
       statusCode: statusCode,
-      templateUsed: templateId ? 'SendGrid Dynamic Template' : 'HTML Template'
+      templateUsed: templateId ? 'SendGrid Dynamic Template' : 'HTML Template',
+      timestamp: new Date().toISOString()
     });
 
     return {
@@ -124,9 +126,13 @@ async function sendAdminBookingNotification(bookingData) {
 
   } catch (error) {
     console.error('❌ Admin booking notification failed:', {
+      to: process.env.SENDGRID_BUSINESS_EMAIL,
       bookingNumber: bookingData.booking_number,
+      service: bookingData.selected_service,
+      customer: `${bookingData.first_name} ${bookingData.last_name}`,
       error: error.message,
-      response: error.response?.body
+      response: error.response?.body,
+      timestamp: new Date().toISOString()
     });
     
     return {
@@ -530,22 +536,28 @@ async function sendBookingCustomerConfirmation(customer, booking) {
     };
 
     const response = await sgMail.send(msg);
+    const messageId = response[0].headers['x-message-id'];
     
-    console.log('📧 Booking customer confirmation sent:', {
+    console.log('✅ Booking customer confirmation sent via SendGrid:', {
       to: customer.email,
       customer: `${customer.first_name} ${customer.last_name || ''}`.trim(),
       bookingNumber: booking.booking_number,
       service: booking.selected_service,
-      messageId: response[0].headers['x-message-id']
+      messageId: messageId,
+      templateUsed: templateId ? 'SendGrid Dynamic Template' : 'HTML Template',
+      timestamp: new Date().toISOString()
     });
     
-    return { success: true, messageId: response[0].headers['x-message-id'] };
+    return { success: true, messageId: messageId };
   } catch (error) {
     console.error('❌ Booking customer confirmation failed:', {
+      to: customer.email,
       customer: `${customer.first_name} ${customer.last_name || ''}`.trim(),
-      email: customer.email,
       bookingNumber: booking.booking_number,
-      error: error.message
+      service: booking.selected_service,
+      error: error.message,
+      response: error.response?.body,
+      timestamp: new Date().toISOString()
     });
     
     return { success: false, error: error.message };
@@ -577,9 +589,22 @@ async function sendSubscriptionConfirmation({ email }) {
       html: '<p>Thanks for subscribing. We will keep you updated.</p>'
     };
 
-    await sgMail.send(msg);
-    return { success: true };
+    const response = await sgMail.send(msg);
+    const messageId = response[0].headers['x-message-id'];
+    
+    console.log('📧 Subscription confirmation email sent via SendGrid:', {
+      to: email,
+      messageId: messageId,
+      templateUsed: templateId ? 'Dynamic Template' : 'HTML Template'
+    });
+    
+    return { success: true, messageId: messageId };
   } catch (error) {
+    console.error('❌ Subscription confirmation email failed:', {
+      to: email,
+      error: error.message,
+      response: error.response?.body
+    });
     return { success: false, error: error.message };
   }
 }
@@ -611,9 +636,24 @@ async function sendSubscriptionNotification({ email }) {
       html: `<p>New subscription from: <strong>${email}</strong></p>`
     };
 
-    await sgMail.send(msg);
-    return { success: true };
+    const response = await sgMail.send(msg);
+    const messageId = response[0].headers['x-message-id'];
+    
+    console.log('📧 Subscription business notification sent via SendGrid:', {
+      to: toEmail,
+      subscriberEmail: email,
+      messageId: messageId,
+      templateUsed: templateId ? 'Dynamic Template' : 'HTML Template'
+    });
+    
+    return { success: true, messageId: messageId };
   } catch (error) {
+    console.error('❌ Subscription business notification failed:', {
+      to: process.env.SENDGRID_BUSINESS_EMAIL,
+      subscriberEmail: email,
+      error: error.message,
+      response: error.response?.body
+    });
     return { success: false, error: error.message };
   }
 }

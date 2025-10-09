@@ -59,13 +59,52 @@ router.post('/submit', async (req, res) => {
             }
 
             // Send email notifications
+            console.log('📧 Attempting to send subscription emails to:', email);
             try {
-                await Promise.all([
+                const [confirmationResult, notificationResult] = await Promise.all([
                     emailService.sendSubscriptionConfirmation({ email }),
                     emailService.sendSubscriptionNotification({ email })
                 ]);
+
+                // Log customer confirmation email result
+                if (confirmationResult.success) {
+                    console.log('✅ Subscription confirmation email sent successfully:', {
+                        recipient: email,
+                        messageId: confirmationResult.messageId,
+                        timestamp: new Date().toISOString()
+                    });
+                } else {
+                    console.error('❌ Subscription confirmation email failed:', {
+                        recipient: email,
+                        error: confirmationResult.error,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+
+                // Log business notification email result
+                if (notificationResult.success) {
+                    console.log('✅ Subscription business notification email sent successfully:', {
+                        recipient: process.env.SENDGRID_BUSINESS_EMAIL,
+                        subscriberEmail: email,
+                        messageId: notificationResult.messageId,
+                        timestamp: new Date().toISOString()
+                    });
+                } else {
+                    console.error('❌ Subscription business notification email failed:', {
+                        recipient: process.env.SENDGRID_BUSINESS_EMAIL,
+                        subscriberEmail: email,
+                        error: notificationResult.error,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+
             } catch (emailError) {
-                console.error('Email notification error:', emailError);
+                console.error('❌ Critical email notification error:', {
+                    subscriberEmail: email,
+                    error: emailError.message,
+                    stack: emailError.stack,
+                    timestamp: new Date().toISOString()
+                });
                 // Continue with the response even if email fails
             }
 

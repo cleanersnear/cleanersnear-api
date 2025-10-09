@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Booking Confirmation - Cleaning Professionals</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f8fafc;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="padding: 20px 0; text-align: center; background-color: #f8fafc;">
+                <table role="presentation" style="width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    
+                    <!-- Header with Logo -->
+                    <tr>
+                        <td style="padding: 40px 50px 20px;">
+                            <img src="http://cdn.mcauto-images-production.sendgrid.net/f8644de4c4e80034/779cf146-1605-473c-a3c5-22a033ade0c2/500x500.jpg" alt="Cleaning Professionals" style="width: 180px; margin-bottom: 25px;">
+                            <h1 style="color: #1E3D8F; margin: 0 0 15px 0; font-size: 28px; text-align: left;">Thank You for Your Booking!</h1>
+                            <p style="color: #4a5568; margin: 0 0 20px 0; font-size: 16px; text-align: left; line-height: 1.6;">
+                                Dear {{customerName}},<br>
+                                We have received your booking and are excited to provide you with our professional cleaning services.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Booking Information -->
+                    <tr>
+                        <td style="padding: 0 50px 20px; text-align: left;">
+                            <table role="presentation" style="width: 100%; background-color: #f8fafc; border-radius: 8px; margin: 20px 0;">
+                                <tr>
+                                    <td style="padding: 30px;">
+                                        <h2 style="color: #1E3D8F; margin: 0 0 20px 0; font-size: 20px; text-align: left;">Booking Details</h2>
+                                        <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                                            <tr>
+                                                <td style="padding: 12px 0; color: #4a5568; width: 40%; font-weight: 600;">Booking Reference:</td>
+                                                <td style="padding: 12px 0; color: #1a202c; font-weight: 700;">{{bookingNumber}}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 0; color: #4a5568; font-weight: 600;">Service Type:</td>
+                                                <td style="padding: 12px 0; color: #1a202c;">{{serviceType}}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 0; color: #4a5568; font-weight: 600;">Scheduled Date:</td>
+                                                <td style="padding: 12px 0; color: #1a202c;">{{scheduledDate}}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 0; color: #4a5568; font-weight: 600;">Service Address:</td>
+                                                <td style="padding: 12px 0; color: #1a202c;">{{address}}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 0; color: #4a5568; font-weight: 600; border-top: 2px solid #cbd5e0; padding-top: 15px;">Total Amount:</td>
+                                                <td style="padding: 12px 0; color: #6b7280; font-weight: 700; font-size: 18px; border-top: 2px solid #cbd5e0; padding-top: 15px;">${{totalPrice}}</td>
+                                            </tr>
+                                        </table>
+                                        
+                                        <!-- What's Next Section moved inside Booking Details -->
+                                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                                            <h3 style="color: #1E3D8F; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">What's Next?</h3>
+                                            
+                                            <div style="background-color: #ffffff; border-left: 4px solid #1E3D8F; padding: 15px; margin-bottom: 15px; border-radius: 4px;">
+                                                <h4 style="margin: 0 0 8px 0; color: #1a202c; font-size: 16px; font-weight: 600;">1. Service Confirmation</h4>
+                                                <p style="margin: 0; color: #4a5568; font-size: 14px; line-height: 1.5;">We'll contact you within 24 hours to confirm all details and answer any questions.</p>
+                                            </div>
+                                            
+                                            <div style="background-color: #ffffff; border-left: 4px solid #1E3D8F; padding: 15px; margin-bottom: 15px; border-radius: 4px;">
+                                                <h4 style="margin: 0 0 8px 0; color: #1a202c; font-size: 16px; font-weight: 600;">2. Professional Service</h4>
+                                                <p style="margin: 0; color: #4a5568; font-size: 14px; line-height: 1.5;">Our experienced team will arrive at the scheduled time, ready to deliver excellent service.</p>
+                                            </div>
+                                            
+                                            <div style="background-color: #ffffff; border-left: 4px solid #1E3D8F; padding: 15px; border-radius: 4px;">
+                                                <h4 style="margin: 0 0 8px 0; color: #1a202c; font-size: 16px; font-weight: 600;">3. Quality Guarantee</h4>
+                                                <p style="margin: 0; color: #4a5568; font-size: 14px; line-height: 1.5;">Your satisfaction is our priority. We stand behind our work with a satisfaction guarantee.</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Contact Information -->
+                    <tr>
+                        <td style="padding: 30px 50px;">
+                            <div style="background-color: #f8fafc; padding: 25px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                <h3 style="color: #1E3D8F; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">Need to Make Changes?</h3>
+                                <p style="color: #4a5568; margin: 0; font-size: 14px; line-height: 1.8;">
+                                    <strong>Email:</strong> account@cleaningprofessionals.com.au<br>
+                                    <strong>Phone:</strong> 1300 886 119<br>
+                                    <strong>Operating Hours:</strong> Mon-Fri 8am–8pm, Sat-Sun 9am-8pm
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 30px 50px; background-color: #1E3D8F; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                            <!-- Company Info -->
+                            <p style="margin: 0 0 15px 0; color: #ffffff; font-size: 16px; text-align: center; font-weight: 600;">
+                                Cleaning Professionals
+                            </p>
+                            
+                            <p style="margin: 0 0 15px 0; color: #cbd5e0; font-size: 14px; text-align: center;">
+                                Professional Cleaning Services Across Melbourne<br>
+                                <a href="https://www.cleaningprofessionals.com.au" style="color: #93c5fd; text-decoration: none;">www.cleaningprofessionals.com.au</a>
+                            </p>
+                            
+                            <!-- Credentials -->
+                            <p style="margin: 0; color: #cbd5e0; font-size: 12px; text-align: center; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                                ✓ Police Checked • ✓ Fully Insured • ✓ 4.9/5 Rating • ✓ 1,200+ Reviews
+                            </p>
+                        </td>
+                    </tr>
+                    
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

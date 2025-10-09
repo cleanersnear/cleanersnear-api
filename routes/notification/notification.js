@@ -1,4 +1,4 @@
-const { emailService } = require('../../services/emailService');
+const emailService = require('../../services/emailService');
 const { supabaseOld } = require('../../config/oldSupabase');
 
 // Save quick booking notification to database (legacy DB)
@@ -40,7 +40,7 @@ const handleQuickBookingNotification = async (customerDetails, bookingDetails) =
   try {
     await emailService.sendQuickBookingAdminNotification(customerDetails, bookingDetails);
     await saveQuickNotificationToDatabase(customerDetails, bookingDetails);
-    emailService.sendQuickBookingCustomerConfirmation(customerDetails, bookingDetails);
+    await emailService.sendQuickBookingCustomerConfirmation(customerDetails, bookingDetails);
   } catch (error) {
     console.error('Error in quick booking notification handler:', error);
   }
