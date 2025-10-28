@@ -201,6 +201,32 @@ router.post('/', async (req, res) => {
             });
         }
 
+        // After responding, trigger admin with bookingNumber for auto-upload (non-blocking)
+        try {
+            const adminBaseUrl = process.env.ADMIN_BASE_URL || process.env.NEXT_PUBLIC_ADMIN_URL;
+            const bookingNumberForTrigger = bookingData.booking_number;
+            if (adminBaseUrl && bookingNumberForTrigger && typeof fetch === 'function') {
+                res.on('finish', () => {
+                    fetch(`${adminBaseUrl}/api/connectteam/auto-upload/quickbook`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ bookingNumber: bookingNumberForTrigger })
+                    }).then(async (r) => {
+                        if (!r.ok) {
+                            const t = await r.text().catch(() => '');
+                            console.error('Admin auto-upload trigger (quick) failed', r.status, t);
+                        }
+                    }).catch((e) => {
+                        console.error('Admin auto-upload trigger (quick) error:', e?.message || e);
+                    });
+                });
+            } else {
+                console.warn('Skipping admin auto-upload trigger (quick): ADMIN_BASE_URL not set');
+            }
+        } catch (e) {
+            console.error('Admin auto-upload trigger (quick) unexpected error:', e?.message || e);
+        }
+
         return res.status(201).json({
             success: true,
             bookingId: bookingData.id,

@@ -89,6 +89,36 @@ router.post('/', async (req, res) => {
     
     console.log('💾 Booking saved');
 
+    // After response is sent, trigger admin to auto-upload by bookingId (non-blocking)
+    try {
+      const adminBaseUrl = process.env.ADMIN_BASE_URL || process.env.NEXT_PUBLIC_ADMIN_URL;
+      const bookingNumber = result?.bookingNumber;
+      if (adminBaseUrl && bookingNumber && typeof fetch === 'function') {
+        res.on('finish', () => {
+          fetch(`${adminBaseUrl}/api/connectteam/auto-upload/book`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookingNumber })
+          })
+          .then(async (r) => {
+            if (!r.ok) {
+              const t = await r.text().catch(() => '');
+              console.error('Admin auto-upload trigger (normalized) failed', r.status, t);
+            }
+          })
+          .catch((e) => {
+            console.error('Admin auto-upload trigger (normalized) error:', e?.message || e);
+          });
+        });
+      } else if (!bookingId) {
+        console.warn('Skipping admin auto-upload trigger (normalized): missing bookingId');
+      } else if (!adminBaseUrl) {
+        console.warn('Skipping admin auto-upload trigger (normalized): ADMIN_BASE_URL not set');
+      }
+    } catch (triggerErr) {
+      console.error('Admin auto-upload trigger (normalized) unexpected error:', triggerErr?.message || triggerErr);
+    }
+
     // Send email notifications (admin + customer) - async, don't block response
     handleEmailNotifications(result)
       .catch(error => {
@@ -188,11 +218,7 @@ async function handleEmailNotifications(bookingResult) {
     }
 
     // === ADMIN NOTIFICATION ===
-    console.log('📧 Attempting to send admin booking notification email:', {
-      bookingNumber: bookingNumber,
-      service: bookingData.selected_service,
-      recipient: process.env.SENDGRID_BUSINESS_EMAIL
-    });
+    console.log('📧 Attempting to send admin booking notification email');
 
     // 1. Log the admin notification attempt in database
     const adminNotificationLog = await logNotification({
@@ -221,14 +247,7 @@ async function handleEmailNotifications(bookingResult) {
           sent_at: new Date().toISOString()
         });
 
-        console.log('✅ Admin booking notification email sent successfully:', {
-          recipient: process.env.SENDGRID_BUSINESS_EMAIL,
-          bookingNumber: bookingNumber,
-          service: bookingData.selected_service,
-          messageId: adminEmailResult.messageId,
-          statusCode: adminEmailResult.statusCode,
-          timestamp: new Date().toISOString()
-        });
+        console.log('✅ Admin booking notification email sent successfully');
 
       } else {
         // 4. Update notification status to failed
@@ -238,13 +257,7 @@ async function handleEmailNotifications(bookingResult) {
           retry_count: 1
         });
 
-        console.error('❌ Admin booking notification email failed:', {
-          recipient: process.env.SENDGRID_BUSINESS_EMAIL,
-          bookingNumber: bookingNumber,
-          service: bookingData.selected_service,
-          error: adminEmailResult.error,
-          timestamp: new Date().toISOString()
-        });
+        console.error('❌ Admin booking notification email failed');
       }
     } else {
       console.error('❌ Failed to log admin notification in database:', {
@@ -254,12 +267,7 @@ async function handleEmailNotifications(bookingResult) {
     }
 
     // === CUSTOMER CONFIRMATION ===
-    console.log('📧 Attempting to send customer confirmation email:', {
-      bookingNumber: bookingNumber,
-      customer: `${bookingData.first_name} ${bookingData.last_name}`,
-      recipient: bookingData.email,
-      service: bookingData.selected_service
-    });
+    console.log('📧 Attempting to send customer confirmation email');
 
     // 5. Log the customer notification attempt
     const customerNotificationLog = await logNotification({
@@ -301,14 +309,7 @@ async function handleEmailNotifications(bookingResult) {
           sent_at: new Date().toISOString()
         });
 
-        console.log('✅ Customer booking confirmation email sent successfully:', {
-          recipient: bookingData.email,
-          customer: `${bookingData.first_name} ${bookingData.last_name}`,
-          bookingNumber: bookingNumber,
-          service: bookingData.selected_service,
-          messageId: customerEmailResult.messageId,
-          timestamp: new Date().toISOString()
-        });
+        console.log('✅ Customer booking confirmation email sent successfully');
 
       } else {
         // 8. Update notification status to failed
@@ -318,14 +319,7 @@ async function handleEmailNotifications(bookingResult) {
           retry_count: 1
         });
 
-        console.error('❌ Customer booking confirmation email failed:', {
-          recipient: bookingData.email,
-          customer: `${bookingData.first_name} ${bookingData.last_name}`,
-          bookingNumber: bookingNumber,
-          service: bookingData.selected_service,
-          error: customerEmailResult.error,
-          timestamp: new Date().toISOString()
-        });
+        console.error('❌ Customer booking confirmation email failed');
       }
     } else {
       console.error('❌ Failed to log customer notification in database:', {
