@@ -156,30 +156,36 @@ router.post('/', async (req, res) => {
         })
     ]);
 
-    // TRIGGER 2: ConnectTeam Auto-Upload - Independent
-    (async () => {
-      try {
-        const adminBaseUrl = process.env.ADMIN_BASE_URL || process.env.NEXT_PUBLIC_ADMIN_URL;
-        if (adminBaseUrl && typeof fetch === 'function') {
-          const response = await fetch(`${adminBaseUrl}/api/connectteam/auto-upload-trigger`, {
+    // TRIGGER 2: ConnectTeam Auto-Upload - Independent (triggers after response sent)
+    try {
+      const adminBaseUrl = process.env.ADMIN_BASE_URL || process.env.NEXT_PUBLIC_ADMIN_URL;
+      if (adminBaseUrl && bookingNumber && typeof fetch === 'function') {
+        res.on('finish', () => {
+          fetch(`${adminBaseUrl}/api/connectteam/auto-upload/book`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ bookingNumber })
+          })
+          .then(async (r) => {
+            if (!r.ok) {
+              const t = await r.text().catch(() => '');
+              console.error('❌ ConnectTeam auto-upload failed:', r.status, t);
+            } else {
+              console.log('✅ ConnectTeam auto-upload triggered successfully');
+            }
+          })
+          .catch((e) => {
+            console.error('❌ ConnectTeam auto-upload error:', e?.message || e);
           });
-          
-          if (response.ok) {
-            console.log('✅ ConnectTeam auto-upload triggered successfully');
-          } else {
-            const text = await response.text().catch(() => '');
-            console.error('❌ ConnectTeam auto-upload failed:', response.status, text);
-          }
-        } else {
-          console.warn('⚠️ ConnectTeam auto-upload skipped: ADMIN_BASE_URL not set');
-        }
-      } catch (error) {
-        console.error('❌ ConnectTeam auto-upload error:', error.message);
+        });
+      } else if (!bookingNumber) {
+        console.warn('⚠️ ConnectTeam auto-upload skipped: missing bookingNumber');
+      } else if (!adminBaseUrl) {
+        console.warn('⚠️ ConnectTeam auto-upload skipped: ADMIN_BASE_URL not set');
       }
-    })();
+    } catch (triggerErr) {
+      console.error('❌ ConnectTeam auto-upload unexpected error:', triggerErr?.message || triggerErr);
+    }
 
     // TRIGGER 3: Save Notification to Database - Independent
     saveMainBookingNotificationToDatabase({
