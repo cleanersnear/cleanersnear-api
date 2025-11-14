@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { supabaseOld } = require('../../config/oldSupabase');
-const { handleQuickBookingNotification } = require('../notification/notification');
+const { sendQuickBookingAdminNotification, sendQuickBookingCustomerConfirmation } = require('../../services/emailService');
+const { saveQuickNotificationToDatabase } = require('../notification/notification');
 
 const router = Router();
 
@@ -30,11 +31,11 @@ router.post('/', async (req, res) => {
         }
 
         // Generate booking number first
-        const bookingNumber = await generateBookingNumber();
+        const generatedBookingNumber = await generateBookingNumber();
 
         // 1. Create booking first to get the ID
         const bookingInsert = {
-            booking_number: bookingNumber,
+            booking_number: generatedBookingNumber,
             booking_type: booking.bookingType,
             frequency: booking.frequency,
             booking_category: booking.bookingCategory,
@@ -150,84 +151,8 @@ router.post('/', async (req, res) => {
             return res.status(500).json({ success: false, message: 'Failed to link booking to customer', error: updateError.message });
         }
 
-        // Trigger notifications after successful booking
-        try {
-            console.log('Starting notification process for quick booking:', bookingData.booking_number);
-            
-            await handleQuickBookingNotification(
-                // Send customer details
-                {
-                    firstName: booking.contactInfo.firstName,
-                    lastName: booking.contactInfo.lastName,
-                    email: booking.contactInfo.email,
-                    phone: booking.contactInfo.phone,
-                    address: `${booking.address?.street}, ${booking.address?.suburb}, ${booking.address?.state} ${booking.address?.postcode}`,
-                    date: booking.bookingPreferences?.preferredDate,
-                    time: booking.bookingPreferences?.timePreference,
-                    isFlexibleDate: false,
-                    isFlexibleTime: false
-                },
-                // Send booking details
-                {
-                    bookingId: bookingData.id,
-                    bookingNumber: bookingData.booking_number,
-                    serviceType: booking.serviceType,
-                    status: 'pending',
-                    createdAt: bookingData.created_at,
-                    location: {
-                        suburb: booking.address?.suburb,
-                        postcode: booking.address?.postcode,
-                        state: booking.address?.state
-                    },
-                    totalPrice: booking.totalPrice,
-                    scheduling: {
-                        date: booking.bookingPreferences?.preferredDate,
-                        time: booking.bookingPreferences?.timePreference
-                    },
-                    frequency: booking.frequency,
-                    minHours: booking.minHours,
-                    baseRate: booking.baseRate,
-                    totalHours: booking.totalHours
-                }
-            );
-
-            console.log('Notification process completed for quick booking:', bookingData.booking_number);
-        } catch (notificationError) {
-            // Log but don't fail the booking
-            console.error('Notification error:', {
-                bookingNumber: bookingData.booking_number,
-                error: notificationError.message,
-                stack: notificationError.stack
-            });
-        }
-
-        // After responding, trigger admin with bookingNumber for auto-upload (non-blocking)
-        try {
-            const adminBaseUrl = process.env.ADMIN_BASE_URL || process.env.NEXT_PUBLIC_ADMIN_URL;
-            const bookingNumberForTrigger = bookingData.booking_number;
-            if (adminBaseUrl && bookingNumberForTrigger && typeof fetch === 'function') {
-                res.on('finish', () => {
-                    fetch(`${adminBaseUrl}/api/connectteam/auto-upload/quickbook`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ bookingNumber: bookingNumberForTrigger })
-                    }).then(async (r) => {
-                        if (!r.ok) {
-                            const t = await r.text().catch(() => '');
-                            console.error('Admin auto-upload trigger (quick) failed', r.status, t);
-                        }
-                    }).catch((e) => {
-                        console.error('Admin auto-upload trigger (quick) error:', e?.message || e);
-                    });
-                });
-            } else {
-                console.warn('Skipping admin auto-upload trigger (quick): ADMIN_BASE_URL not set');
-            }
-        } catch (e) {
-            console.error('Admin auto-upload trigger (quick) unexpected error:', e?.message || e);
-        }
-
-        return res.status(201).json({
+        // Send response immediately
+        res.status(201).json({
             success: true,
             bookingId: bookingData.id,
             bookingNumber: bookingData.booking_number,
@@ -236,6 +161,75 @@ router.post('/', async (req, res) => {
             isAuthenticated: booking.isAuthenticated || false,
             message: booking.isAuthenticated ? 'Booking created and linked to existing customer' : 'Booking created successfully'
         });
+
+        // ============================================================================
+        // PARALLEL POST-BOOKING TRIGGERS (All independent, failures don't affect others)
+        // ============================================================================
+
+        const bookingNumber = bookingData.booking_number;
+
+        // Prepare customer and booking details
+        const customerDetails = {
+            firstName: booking.contactInfo.firstName,
+            lastName: booking.contactInfo.lastName,
+            email: booking.contactInfo.email,
+            phone: booking.contactInfo.phone,
+            address: `${booking.address?.street}, ${booking.address?.suburb}, ${booking.address?.state} ${booking.address?.postcode}`,
+            date: booking.bookingPreferences?.preferredDate,
+            time: booking.bookingPreferences?.timePreference
+        };
+
+        const bookingDetails = {
+            bookingId: bookingData.id,
+            bookingNumber: bookingData.booking_number,
+            serviceType: booking.serviceType,
+            totalPrice: booking.totalPrice,
+            frequency: booking.frequency,
+            minHours: booking.minHours,
+            baseRate: booking.baseRate,
+            totalHours: booking.totalHours
+        };
+
+        // TRIGGER 1: Send Emails (Admin + Customer) - Parallel, independent
+        Promise.allSettled([
+            // Admin email
+            sendQuickBookingAdminNotification(customerDetails, bookingDetails)
+                .then(result => {
+                    if (result.success) {
+                        console.log('✅ Quick booking admin email sent successfully');
+                    } else {
+                        console.error('❌ Quick booking admin email failed:', result.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Quick booking admin email error:', error.message);
+                }),
+            
+            // Customer email
+            sendQuickBookingCustomerConfirmation(customerDetails, bookingDetails)
+                .then(result => {
+                    if (result.success) {
+                        console.log('✅ Quick booking customer email sent successfully');
+                    } else {
+                        console.error('❌ Quick booking customer email failed:', result.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Quick booking customer email error:', error.message);
+                })
+        ]);
+
+        // TRIGGER 2: Save Notification to Database - Independent
+        saveQuickNotificationToDatabase(customerDetails, bookingDetails)
+            .then(() => {
+                console.log('✅ Quick booking notification saved to database');
+            })
+            .catch(error => {
+                console.error('❌ Quick booking notification database save failed:', error.message);
+            });
+
+        // Note: ConnectTeam auto-upload not enabled for quick bookings yet
+        return;
 
     } catch (error) {
         console.error('Booking error:', error);
