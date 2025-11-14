@@ -1,5 +1,4 @@
-// Use OLD database for notifications (same as quick bookings)
-const { supabaseOld } = require('../config/oldSupabase');
+const { supabase } = require('../config/database');
 
 /**
  * Log notification in the database
@@ -25,14 +24,8 @@ async function logNotification(notificationData) {
       max_retries = 3
     } = notificationData;
 
-    console.log('📝 Attempting to log notification:', {
-      booking_number,
-      notification_type,
-      recipient_email,
-      status
-    });
 
-    const { data, error } = await supabaseOld
+    const { data, error } = await supabase
       .from('notifications')
       .insert([
         {
@@ -55,24 +48,13 @@ async function logNotification(notificationData) {
       .select();
 
     if (error) {
-      console.error('❌ Failed to insert notification into database:', {
-        error: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        booking_number
-      });
       return {
         success: false,
         error: error.message
       };
     }
 
-    console.log('✅ Notification logged successfully:', {
-      notificationId: data[0].id,
-      booking_number,
-      type: notification_type
-    });
+    console.log('📬 Notification sent');
 
     return {
       success: true,
@@ -81,11 +63,6 @@ async function logNotification(notificationData) {
     };
 
   } catch (error) {
-    console.error('❌ Exception in logNotification:', {
-      error: error.message,
-      stack: error.stack,
-      booking_number: notificationData.booking_number
-    });
     return {
       success: false,
       error: error.message
@@ -111,11 +88,6 @@ async function updateNotificationStatus(notificationId, updateData) {
       retry_count
     } = updateData;
 
-    console.log('🔄 Updating notification status:', {
-      notificationId,
-      status,
-      external_id: external_id ? external_id.substring(0, 20) + '...' : undefined
-    });
 
     const updateFields = {};
     if (status) updateFields.status = status;
@@ -126,27 +98,18 @@ async function updateNotificationStatus(notificationId, updateData) {
     if (delivered_at) updateFields.delivered_at = delivered_at;
     if (retry_count !== undefined) updateFields.retry_count = retry_count;
 
-    const { data, error } = await supabaseOld
+    const { data, error } = await supabase
       .from('notifications')
       .update(updateFields)
       .eq('id', notificationId)
       .select();
 
     if (error) {
-      console.error('❌ Failed to update notification status:', {
-        error: error.message,
-        notificationId
-      });
       return {
         success: false,
         error: error.message
       };
     }
-
-    console.log('✅ Notification status updated successfully:', {
-      notificationId,
-      newStatus: status
-    });
 
     return {
       success: true,
@@ -154,10 +117,6 @@ async function updateNotificationStatus(notificationId, updateData) {
     };
 
   } catch (error) {
-    console.error('❌ Exception in updateNotificationStatus:', {
-      error: error.message,
-      notificationId
-    });
     return {
       success: false,
       error: error.message
@@ -173,7 +132,7 @@ async function updateNotificationStatus(notificationId, updateData) {
 async function getBookingNotifications(bookingNumber) {
   try {
 
-    const { data, error } = await supabaseOld
+    const { data, error } = await supabase
       .from('notifications')
       .select('*')
       .eq('booking_number', bookingNumber)
@@ -208,7 +167,7 @@ async function getBookingNotifications(bookingNumber) {
 async function getNotificationsByStatus(status, limit = 100) {
   try {
 
-    const { data, error } = await supabaseOld
+    const { data, error } = await supabase
       .from('notifications')
       .select('*')
       .eq('status', status)

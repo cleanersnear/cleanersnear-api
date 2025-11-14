@@ -89,61 +89,44 @@ router.post('/', async (req, res) => {
     
     console.log('💾 Booking saved');
 
-    // Send response immediately - booking is successful
-    res.status(200).json(result);
-
-    // Run all post-booking tasks independently after response is sent
-    // Using Promise.allSettled ensures ALL tasks run even if one fails
-    Promise.allSettled([
-      // Task 1: Send admin email + customer email + save notifications
-      (async () => {
-        try {
-          await handleEmailNotifications(result);
-        } catch (error) {
-          console.error('⚠️ Email notifications error (non-critical):', error.message);
-        }
-      })(),
-      
-      // Task 2: Trigger ConnectTeam auto-upload
-      (async () => {
-        try {
-          const adminBaseUrl = process.env.ADMIN_BASE_URL || process.env.NEXT_PUBLIC_ADMIN_URL;
-          const bookingNumber = result?.bookingNumber;
-          
-          if (!adminBaseUrl) {
-            console.warn('⚠️ ConnectTeam: ADMIN_BASE_URL not set');
-            return;
-          }
-          
-          if (!bookingNumber) {
-            console.warn('⚠️ ConnectTeam: missing bookingNumber');
-            return;
-          }
-          
-          if (typeof fetch !== 'function') {
-            console.warn('⚠️ ConnectTeam: fetch not available');
-            return;
-          }
-          
-          const response = await fetch(`${adminBaseUrl}/api/connectteam/auto-upload-trigger`, {
+    // After response is sent, trigger admin to auto-upload by bookingId (non-blocking)
+    try {
+      const adminBaseUrl = process.env.ADMIN_BASE_URL || process.env.NEXT_PUBLIC_ADMIN_URL;
+      const bookingNumber = result?.bookingNumber;
+      if (adminBaseUrl && bookingNumber && typeof fetch === 'function') {
+        res.on('finish', () => {
+          fetch(`${adminBaseUrl}/api/connectteam/auto-upload-trigger`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ bookingNumber })
+          })
+          .then(async (r) => {
+            if (!r.ok) {
+              const t = await r.text().catch(() => '');
+              console.error('Admin auto-upload trigger (normalized) failed', r.status, t);
+            }
+          })
+          .catch((e) => {
+            console.error('Admin auto-upload trigger (normalized) error:', e?.message || e);
           });
-          
-          if (!response.ok) {
-            const text = await response.text().catch(() => '');
-            console.error('❌ ConnectTeam auto-upload failed:', response.status, text);
-          } else {
-            console.log('✅ ConnectTeam auto-upload triggered successfully');
-          }
-        } catch (error) {
-          console.error('❌ ConnectTeam trigger error (non-critical):', error.message);
-        }
-      })()
-    ]).then(() => {
-      console.log('✅ All post-booking tasks completed (check logs above for individual results)');
-    });
+        });
+      } else if (!bookingId) {
+        console.warn('Skipping admin auto-upload trigger (normalized): missing bookingId');
+      } else if (!adminBaseUrl) {
+        console.warn('Skipping admin auto-upload trigger (normalized): ADMIN_BASE_URL not set');
+      }
+    } catch (triggerErr) {
+      console.error('Admin auto-upload trigger (normalized) unexpected error:', triggerErr?.message || triggerErr);
+    }
+
+    // Send email notifications (admin + customer) - async, don't block response
+    handleEmailNotifications(result)
+      .catch(error => {
+        // Don't throw error - booking was successful, notifications are secondary
+        console.error('⚠️ Notification error (non-critical):', error.message);
+      });
+    
+    res.status(200).json(result);
 
   } catch (error) {
     console.error('❌ Booking creation error:', error);
@@ -221,53 +204,24 @@ router.get('/:bookingNumber', async (req, res) => {
 
 /**
  * Handle email notifications after successful booking creation
- * Sends both admin notification and customer confirmation independently
+ * Sends both admin notification and customer confirmation
  * This function runs asynchronously and doesn't block the booking response
  * @param {Object} bookingResult - Result from createNormalizedBooking
  */
 async function handleEmailNotifications(bookingResult) {
-  const { bookingNumber, data: bookingData } = bookingResult;
-  
-  if (!bookingData) {
-    console.error('❌ No booking data available for notification');
-    return;
-  }
-
-  // Parse pricing once for both emails
-  let pricingData = bookingData.pricing;
-  if (typeof pricingData === 'string') {
-    try {
-      pricingData = JSON.parse(pricingData);
-    } catch {
-      console.warn('⚠️ Could not parse pricing data, using raw value');
-    }
-  }
-
-  // Run admin and customer emails in parallel - if one fails, other still runs
-  const results = await Promise.allSettled([
-    // Task 1: Admin email + notification
-    sendAdminEmailAndNotify(bookingData, bookingNumber),
-    
-    // Task 2: Customer email + notification  
-    sendCustomerEmailAndNotify(bookingData, bookingNumber, pricingData)
-  ]);
-
-  // Log overall results
-  console.log('📊 Email notification results:', {
-    admin: results[0].status,
-    customer: results[1].status
-  });
-}
-
-/**
- * Send admin email and save notification
- */
-async function sendAdminEmailAndNotify(bookingData, bookingNumber) {
   try {
-    console.log('📧 Admin email: Starting...');
+    const { bookingNumber, data: bookingData } = bookingResult;
+    
+    if (!bookingData) {
+      console.error('❌ No booking data available for notification');
+      return;
+    }
 
-    // 1. Log notification attempt
-    const notificationLog = await logNotification({
+    // === ADMIN NOTIFICATION ===
+    console.log('📧 Attempting to send admin booking notification email');
+
+    // 1. Log the admin notification attempt in database
+    const adminNotificationLog = await logNotification({
       booking_id: bookingData.id,
       booking_number: bookingNumber,
       notification_type: 'admin_notification',
@@ -278,45 +232,55 @@ async function sendAdminEmailAndNotify(bookingData, bookingNumber) {
       status: 'pending'
     });
 
-    const notificationId = notificationLog.success ? notificationLog.notificationId : null;
+    if (adminNotificationLog.success) {
+      const adminNotificationId = adminNotificationLog.notificationId;
 
-    // 2. Send email
-    const emailResult = await sendAdminBookingNotification(bookingData);
+      // 2. Send email to admin
+      const adminEmailResult = await sendAdminBookingNotification(bookingData);
 
-    // 3. Update notification status
-    if (notificationId) {
-      await updateNotificationStatus(notificationId, {
-        status: emailResult.success ? 'sent' : 'failed',
-        external_id: emailResult.messageId,
-        external_status: emailResult.success ? `Admin email sent successfully` : undefined,
-        error_message: emailResult.error,
-        sent_at: emailResult.success ? new Date().toISOString() : undefined,
-        retry_count: emailResult.success ? 0 : 1
+      if (adminEmailResult.success) {
+        // 3. Update notification status to sent
+        await updateNotificationStatus(adminNotificationId, {
+          status: 'sent',
+          external_id: adminEmailResult.messageId,
+          external_status: `Admin email sent successfully (Status: ${adminEmailResult.statusCode})`,
+          sent_at: new Date().toISOString()
+        });
+
+        console.log('✅ Admin booking notification email sent successfully');
+
+      } else {
+        // 4. Update notification status to failed
+        await updateNotificationStatus(adminNotificationId, {
+          status: 'failed',
+          error_message: adminEmailResult.error,
+          retry_count: 1
+        });
+
+        console.error('❌ Admin booking notification email failed');
+      }
+    } else {
+      console.error('❌ Failed to log admin notification in database:', {
+        bookingNumber: bookingNumber,
+        error: adminNotificationLog.error
       });
     }
 
-    if (emailResult.success) {
-      console.log('✅ Admin email sent successfully');
-    } else {
-      console.error('❌ Admin email failed:', emailResult.error);
+    // === CUSTOMER CONFIRMATION ===
+    console.log('📧 Attempting to send customer confirmation email');
+
+    // Parse pricing if it's a JSON string
+    let pricingData = bookingData.pricing;
+    if (typeof pricingData === 'string') {
+      try {
+        pricingData = JSON.parse(pricingData);
+      } catch {
+        console.warn('⚠️ Could not parse pricing data, using raw value');
+      }
     }
 
-    return emailResult;
-  } catch (error) {
-    console.error('❌ Admin email process error:', error.message);
-    throw error;
-  }
-}
-
-/**
- * Send customer email and save notification
- */
-async function sendCustomerEmailAndNotify(bookingData, bookingNumber, pricingData) {
-  try {
-    console.log('📧 Customer email: Starting...');
-
-    // 1. Log notification attempt
-    const notificationLog = await logNotification({
+    // 5. Log the customer notification attempt (ALWAYS log, regardless of email outcome)
+    const customerNotificationLog = await logNotification({
       booking_id: bookingData.id,
       booking_number: bookingNumber,
       notification_type: 'customer_confirmation',
@@ -327,10 +291,10 @@ async function sendCustomerEmailAndNotify(bookingData, bookingNumber, pricingDat
       status: 'pending'
     });
 
-    const notificationId = notificationLog.success ? notificationLog.notificationId : null;
+    const customerNotificationId = customerNotificationLog.success ? customerNotificationLog.notificationId : null;
 
-    // 2. Send email
-    const emailResult = await sendBookingCustomerConfirmation(
+    // 6. Send confirmation email to customer
+    const customerEmailResult = await sendBookingCustomerConfirmation(
       {
         first_name: bookingData.first_name,
         last_name: bookingData.last_name,
@@ -345,28 +309,52 @@ async function sendCustomerEmailAndNotify(bookingData, bookingNumber, pricingDat
       }
     );
 
-    // 3. Update notification status
-    if (notificationId) {
-      await updateNotificationStatus(notificationId, {
-        status: emailResult.success ? 'sent' : 'failed',
-        external_id: emailResult.messageId,
-        external_status: emailResult.success ? `Customer confirmation sent successfully` : undefined,
-        error_message: emailResult.error,
-        sent_at: emailResult.success ? new Date().toISOString() : undefined,
-        retry_count: emailResult.success ? 0 : 1
-      });
-    }
-
-    if (emailResult.success) {
-      console.log('✅ Customer email sent successfully');
+    // 7. Update notification status based on email result (if notification was logged)
+    if (customerNotificationId) {
+      if (customerEmailResult.success) {
+        await updateNotificationStatus(customerNotificationId, {
+          status: 'sent',
+          external_id: customerEmailResult.messageId,
+          external_status: `Customer confirmation sent successfully`,
+          sent_at: new Date().toISOString()
+        });
+        console.log('✅ Customer booking confirmation email sent successfully');
+      } else {
+        await updateNotificationStatus(customerNotificationId, {
+          status: 'failed',
+          error_message: customerEmailResult.error,
+          retry_count: 1
+        });
+        console.error('❌ Customer booking confirmation email failed:', customerEmailResult.error);
+      }
     } else {
-      console.error('❌ Customer email failed:', emailResult.error);
+      console.error('❌ Failed to log customer notification in database:', customerNotificationLog.error);
     }
 
-    return emailResult;
   } catch (error) {
-    console.error('❌ Customer email process error:', error.message);
-    throw error;
+    console.error('❌ Critical email notification error:', {
+      bookingNumber: bookingResult.bookingNumber,
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Try to log the error in notification table if possible
+    try {
+      await logNotification({
+        booking_id: bookingResult.data?.id || null,
+        booking_number: bookingResult.bookingNumber || 'unknown',
+        notification_type: 'notification_error',
+        title: 'Email Notification Error',
+        message: `Failed to send email notifications: ${error.message}`,
+        delivery_method: 'internal',
+        status: 'failed',
+        error_message: error.message
+      });
+    } catch (logError) {
+      // Silent fail
+      console.error('⚠️ Could not log notification error:', logError.message);
+    }
   }
 }
 
