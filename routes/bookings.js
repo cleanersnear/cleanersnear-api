@@ -269,7 +269,17 @@ async function handleEmailNotifications(bookingResult) {
     // === CUSTOMER CONFIRMATION ===
     console.log('📧 Attempting to send customer confirmation email');
 
-    // 5. Log the customer notification attempt
+    // Parse pricing if it's a JSON string
+    let pricingData = bookingData.pricing;
+    if (typeof pricingData === 'string') {
+      try {
+        pricingData = JSON.parse(pricingData);
+      } catch {
+        console.warn('⚠️ Could not parse pricing data, using raw value');
+      }
+    }
+
+    // 5. Log the customer notification attempt (ALWAYS log, regardless of email outcome)
     const customerNotificationLog = await logNotification({
       booking_id: bookingData.id,
       booking_number: bookingNumber,
@@ -281,52 +291,44 @@ async function handleEmailNotifications(bookingResult) {
       status: 'pending'
     });
 
-    if (customerNotificationLog.success) {
-      const customerNotificationId = customerNotificationLog.notificationId;
+    const customerNotificationId = customerNotificationLog.success ? customerNotificationLog.notificationId : null;
 
-      // 6. Send confirmation email to customer
-      const customerEmailResult = await sendBookingCustomerConfirmation(
-        {
-          first_name: bookingData.first_name,
-          last_name: bookingData.last_name,
-          email: bookingData.email,
-          address: bookingData.address
-        },
-        {
-          booking_number: bookingNumber,
-          selected_service: bookingData.selected_service,
-          schedule_date: bookingData.schedule_date,
-          totalPrice: bookingData.pricing?.totalPrice
-        }
-      );
+    // 6. Send confirmation email to customer
+    const customerEmailResult = await sendBookingCustomerConfirmation(
+      {
+        first_name: bookingData.first_name,
+        last_name: bookingData.last_name,
+        email: bookingData.email,
+        address: bookingData.address,
+        schedule_date: bookingData.schedule_date
+      },
+      {
+        booking_number: bookingNumber,
+        selected_service: bookingData.selected_service,
+        totalPrice: pricingData?.totalPrice
+      }
+    );
 
+    // 7. Update notification status based on email result (if notification was logged)
+    if (customerNotificationId) {
       if (customerEmailResult.success) {
-        // 7. Update notification status to sent
         await updateNotificationStatus(customerNotificationId, {
           status: 'sent',
           external_id: customerEmailResult.messageId,
           external_status: `Customer confirmation sent successfully`,
           sent_at: new Date().toISOString()
         });
-
         console.log('✅ Customer booking confirmation email sent successfully');
-
       } else {
-        // 8. Update notification status to failed
         await updateNotificationStatus(customerNotificationId, {
           status: 'failed',
           error_message: customerEmailResult.error,
           retry_count: 1
         });
-
-        console.error('❌ Customer booking confirmation email failed');
+        console.error('❌ Customer booking confirmation email failed:', customerEmailResult.error);
       }
     } else {
-      console.error('❌ Failed to log customer notification in database:', {
-        bookingNumber: bookingNumber,
-        customer: `${bookingData.first_name} ${bookingData.last_name}`,
-        error: customerNotificationLog.error
-      });
+      console.error('❌ Failed to log customer notification in database:', customerNotificationLog.error);
     }
 
   } catch (error) {

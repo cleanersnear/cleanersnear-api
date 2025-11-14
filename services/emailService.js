@@ -106,16 +106,7 @@ async function sendAdminBookingNotification(bookingData) {
     const messageId = response[0].headers['x-message-id'];
     const statusCode = response[0].statusCode;
     
-    console.log('✅ Admin booking notification sent via SendGrid:', {
-      to: process.env.SENDGRID_BUSINESS_EMAIL,
-      bookingNumber: booking_number,
-      service: selected_service,
-      customer: `${first_name} ${last_name}`,
-      messageId: messageId,
-      statusCode: statusCode,
-      templateUsed: templateId ? 'SendGrid Dynamic Template' : 'HTML Template',
-      timestamp: new Date().toISOString()
-    });
+    console.log('✅ Admin booking notification sent via SendGrid');
 
     return {
       success: true,
@@ -476,20 +467,11 @@ async function sendQuickBookingCustomerConfirmation(customerDetails, bookingDeta
 
     const response = await sgMail.send(msg);
     
-    console.log('📧 Quick-book customer confirmation sent:', {
-      to: customerDetails.email,
-      customer: customerDetails.firstName,
-      bookingNumber: bookingDetails.bookingNumber,
-      messageId: response[0].headers['x-message-id']
-    });
+    console.log('📧 Quick-book customer confirmation sent');
     
     return { success: true, messageId: response[0].headers['x-message-id'] };
   } catch (error) {
-    console.error('❌ Quick-book customer confirmation failed:', {
-      customer: customerDetails.firstName,
-      email: customerDetails.email,
-      error: error.message
-    });
+    console.error('❌ Quick-book customer confirmation failed');
     
     return { success: false, error: error.message };
   }
@@ -497,14 +479,32 @@ async function sendQuickBookingCustomerConfirmation(customerDetails, bookingDeta
 
 /**
  * Send customer confirmation for a full booking (non quick-book)
- * @param {{first_name:string,last_name?:string,email:string,address?:string}} customer
- * @param {{booking_number:string,selected_service:string,schedule_date?:string,totalPrice?:number}} booking
+ * @param {{first_name:string,last_name?:string,email:string,address?:string,schedule_date?:string}} customer
+ * @param {{booking_number:string,selected_service:string,totalPrice?:number}} booking
  */
 async function sendBookingCustomerConfirmation(customer, booking) {
   try {
     const templateId = process.env.SENDGRID_CUSTOMER_BOOKING_TEMPLATE_ID;
     const fromEmail = process.env.SENDGRID_FROM_EMAIL;
-    if (!fromEmail) throw new Error('Missing SENDGRID_FROM_EMAIL for booking customer');
+    
+    if (!fromEmail) {
+      throw new Error('Missing SENDGRID_FROM_EMAIL for booking customer');
+    }
+
+    // Format scheduled date
+    const formattedDate = customer.schedule_date 
+      ? new Date(customer.schedule_date).toLocaleDateString('en-AU', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : 'Not specified';
+
+    // Format total price
+    const formattedPrice = booking.totalPrice 
+      ? `$${Number(booking.totalPrice).toFixed(2)}`
+      : 'To be confirmed';
 
     const msg = templateId ? {
       to: customer.email,
@@ -514,12 +514,12 @@ async function sendBookingCustomerConfirmation(customer, booking) {
         customerName: `${customer.first_name}${customer.last_name ? ' ' + customer.last_name : ''}`,
         bookingNumber: booking.booking_number,
         serviceType: booking.selected_service,
-        scheduledDate: booking.schedule_date,
-        totalPrice: booking.totalPrice,
-        address: customer.address,
-        companyLogo: process.env.COMPANY_LOGO_URL,
+        scheduledDate: formattedDate,
+        totalPrice: formattedPrice,
+        address: customer.address || 'Not specified',
+        companyLogo: process.env.COMPANY_LOGO_URL || '',
         companyEmail: process.env.COMPANY_EMAIL || fromEmail,
-        companyPhone: process.env.COMPANY_PHONE
+        companyPhone: process.env.COMPANY_PHONE || ''
       }
     } : {
       to: customer.email,
@@ -530,34 +530,30 @@ async function sendBookingCustomerConfirmation(customer, booking) {
         <p>Hi ${customer.first_name}${customer.last_name ? ' ' + customer.last_name : ''}, thanks for booking with us.</p>
         <p><strong>Booking #:</strong> ${booking.booking_number}</p>
         <p><strong>Service:</strong> ${booking.selected_service}</p>
-        <p><strong>Date:</strong> ${booking.schedule_date || '-'}</p>
-        <p><strong>Address:</strong> ${customer.address || '-'}</p>
+        <p><strong>Date:</strong> ${formattedDate}</p>
+        <p><strong>Address:</strong> ${customer.address || 'Not specified'}</p>
+        <p><strong>Total:</strong> ${formattedPrice}</p>
       `
     };
 
+    console.log('📤 Sending customer confirmation to:', customer.email);
+    
     const response = await sgMail.send(msg);
     const messageId = response[0].headers['x-message-id'];
     
-    console.log('✅ Booking customer confirmation sent via SendGrid:', {
+    console.log('✅ Booking customer confirmation sent via SendGrid', {
       to: customer.email,
-      customer: `${customer.first_name} ${customer.last_name || ''}`.trim(),
       bookingNumber: booking.booking_number,
-      service: booking.selected_service,
-      messageId: messageId,
-      templateUsed: templateId ? 'SendGrid Dynamic Template' : 'HTML Template',
-      timestamp: new Date().toISOString()
+      messageId
     });
     
     return { success: true, messageId: messageId };
   } catch (error) {
     console.error('❌ Booking customer confirmation failed:', {
       to: customer.email,
-      customer: `${customer.first_name} ${customer.last_name || ''}`.trim(),
       bookingNumber: booking.booking_number,
-      service: booking.selected_service,
       error: error.message,
-      response: error.response?.body,
-      timestamp: new Date().toISOString()
+      response: error.response?.body
     });
     
     return { success: false, error: error.message };
@@ -592,19 +588,11 @@ async function sendSubscriptionConfirmation({ email }) {
     const response = await sgMail.send(msg);
     const messageId = response[0].headers['x-message-id'];
     
-    console.log('📧 Subscription confirmation email sent via SendGrid:', {
-      to: email,
-      messageId: messageId,
-      templateUsed: templateId ? 'Dynamic Template' : 'HTML Template'
-    });
+    console.log('📧 Subscription confirmation email sent via SendGrid');
     
     return { success: true, messageId: messageId };
   } catch (error) {
-    console.error('❌ Subscription confirmation email failed:', {
-      to: email,
-      error: error.message,
-      response: error.response?.body
-    });
+    console.error('❌ Subscription confirmation email failed');
     return { success: false, error: error.message };
   }
 }
@@ -639,21 +627,11 @@ async function sendSubscriptionNotification({ email }) {
     const response = await sgMail.send(msg);
     const messageId = response[0].headers['x-message-id'];
     
-    console.log('📧 Subscription business notification sent via SendGrid:', {
-      to: toEmail,
-      subscriberEmail: email,
-      messageId: messageId,
-      templateUsed: templateId ? 'Dynamic Template' : 'HTML Template'
-    });
+    console.log('📧 Subscription business notification sent via SendGrid');
     
     return { success: true, messageId: messageId };
   } catch (error) {
-    console.error('❌ Subscription business notification failed:', {
-      to: process.env.SENDGRID_BUSINESS_EMAIL,
-      subscriberEmail: email,
-      error: error.message,
-      response: error.response?.body
-    });
+    console.error('❌ Subscription business notification failed');
     return { success: false, error: error.message };
   }
 }
